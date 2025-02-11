@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>직원 목록</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        a {
+            text-decoration: none;
+            color: blue;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .btn {
+            display: inline-block;
+            margin: 20px;
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<h2>직원 목록</h2>
+
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>이름</th>
+        <th>이메일</th>
+        <th>나이</th>
+        <th th:if="${#lists.size(employees) > 0}">수정</th>
+        <th th:if="${#lists.size(employees) > 0}">삭제</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="employee : ${employees}">
+        <td th:text="${employee.id}"></td>
+        <td th:text="${employee.name}"></td>
+        <td>
+            <a th:href="@{/employees/{id}(id=${employee.id})}" th:text="${employee.email}"></a>
+        </td>
+        <td th:text="${employee.age}"></td>
+        <td>
+            <a th:href="@{/employees/edit/{id}(id=${employee.id})}">수정</a>
+        </td>
+        <td>
+            <a th:href="@{/employees/delete/{id}(id=${employee.id})}" onclick="return confirm('정말 삭제하시겠습니까?')">삭제</a>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<a href="/employees/register" class="btn">직원 추가</a>
+
+</body>
+</html>

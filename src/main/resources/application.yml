@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: Mgr
+
+  # mysql datasource 설정 ( database 변경시 수정사항 )
+  datasource:
+    url: jdbc:mysql://localhost:3306/hr_mgr?useSSL=false&serverTimezone=UTC
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create # 자동으로 테이블 생성 및 업데이트
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect # mysql dialect ( database 변경시 수정사항 )
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    cache: false
+
+  output:
+    ansi:
+      enabled: ALWAYS
+#security:
+#  jwt:
+#    secret: E4Fa0VkPpoMbtO8XlFvwrXSLlm1+Nw3KtEgKyAr/vYs7vu17AXechLyF3d2aRpjy14v9KRJH+UI3R8Hc1DYdjA==
+
+#    date-format: yyyy-MM-dd
+#    serialization:
+#      write-dates-as-timestamps: false
+
+logging:
+  level:
+    org.hibernate.sql: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE

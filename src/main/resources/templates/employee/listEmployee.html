@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>직원 상세 정보</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { width: 50%; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .label { font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>직원 상세 정보</h2>
+    <p><span class="label">ID:</span> <span th:text="${employee.id}"></span></p>
+    <p><span class="label">이름:</span> <span th:text="${employee.name}"></span></p>
+    <p><span class="label">이메일:</span> <span th:text="${employee.email}"></span></p>
+    <p><span class="label">나이:</span> <span th:text="${employee.age}"></span></p>
+<!--    <p><span class="label">입사일:</span> <span th:text="${employee.joinDate}"></span></p>-->
+<!--    <p><span class="label">급여:</span> <span th:text="${employee.salary} + ' 원'"></span></p>-->
+
+    <a th:href="@{/employees}" style="display: inline-block; margin-top: 20px;">목록으로 돌아가기</a>
+</div>
+</body>
+</html>

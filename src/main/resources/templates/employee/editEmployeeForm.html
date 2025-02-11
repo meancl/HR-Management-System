@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>직원 수정</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 350px;
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            text-align: left;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            border-color: #007BFF;
+            outline: none;
+        }
+
+        .btn {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        .back-link {
+            margin-top: 20px;
+            display: block;
+            color: #007BFF;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>직원 수정</h2>
+
+    <form th:action="@{/employees/edit/{id}(id=${empId})}" th:object="${employeeDto}" method="post">
+        <label>이름:</label>
+        <input type="text" th:field="*{name}" required/>
+
+        <label>비밀번호:</label>
+        <input type="password" th:field="*{password}" required/>
+
+        <label>이메일:</label>
+        <input type="email" th:field="*{email}" required/>
+
+        <label>나이:</label>
+        <input type="number" th:field="*{age}" required/>
+
+        <button type="submit" class="btn">수정 완료</button>
+    </form>
+
+    <a href="/employees" class="back-link">목록으로 돌아가기</a>
+</div>
+
+</body>
+</html>

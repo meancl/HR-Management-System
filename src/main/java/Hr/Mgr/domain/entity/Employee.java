@@ -12,7 +12,7 @@ public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "employee_id") // db 속성 name
-    private Long empId;
+    private Long id;
 
     @Column(nullable = false)
     private String hashedPwd;

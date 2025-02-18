@@ -12,10 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class EmployeeServiceImpl implements EmployeeService {
@@ -31,7 +28,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
-    public void createEmployee(EmployeeReqDto request) {
+    public Long createEmployee(EmployeeReqDto request) {
         logger.info(" 회원가입 요청: 이메일={}, 이름={}", request.getEmail(), request.getName());
 
         try {
@@ -41,8 +38,10 @@ public class EmployeeServiceImpl implements EmployeeService {
             employee.setHashedPwd(passwordEncoder.encode(request.getPassword())); // ✅ 비밀번호 해싱
             employee.setAge(request.getAge());
 
-            employeeRepository.save(employee);
+            Employee save = employeeRepository.save(employee);
             logger.info(" 회원가입 성공: 이메일={}", request.getEmail());
+
+            return save.getId();
         }
         catch (Exception e) {
             logger.error(" 회원가입 실패: 이메일={}, 에러={}", request.getEmail(), e.getMessage());
@@ -58,13 +57,13 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     void update(Employee employee, EmployeeReqDto request) {
-        if(request.getAge() != null && !employee.getAge().equals(request.getAge()) )
+        if(request.getAge() != null  && !employee.getAge().equals(request.getAge()) )
             employee.setAge(request.getAge());
-        if(request.getEmail() != null && !employee.getEmail().equals(request.getEmail()))
+        if(request.getEmail() != null && !request.getEmail().isEmpty() && !employee.getEmail().equals(request.getEmail()))
             employee.setEmail(request.getEmail());
-        if(request.getPassword() != null &&  !passwordEncoder.matches(request.getPassword(),employee.getHashedPwd()))
+        if(request.getPassword() != null && !request.getPassword().isEmpty() && !passwordEncoder.matches(request.getPassword(),employee.getHashedPwd()))
             employee.setHashedPwd(passwordEncoder.encode(request.getPassword()));
-        if(request.getName() != null & !employee.getName().equals(request.getName()))
+        if(request.getName() != null && !request.getName().isEmpty() && !employee.getName().equals(request.getName()))
             employee.setName(request.getName());
     }
 
@@ -72,7 +71,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     public EmployeeResDto getEmployeeById(Long employeeId) {
         return employeeRepository.findById(employeeId)
                 .map(emp -> { return new EmployeeResDto(
-                        emp.getEmpId(),
+                        emp.getId(),
                         emp.getName(),
                         emp.getEmail(),
                         emp.getAge());
@@ -84,7 +83,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         return employeeRepository.findAll().stream()
                 .map(emp -> new EmployeeResDto(
-                        emp.getEmpId(),
+                        emp.getId(),
                         emp.getName(),
                         emp.getEmail(),
                         emp.getAge()

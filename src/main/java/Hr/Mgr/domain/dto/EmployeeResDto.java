@@ -1,5 +1,6 @@
 package Hr.Mgr.domain.dto;
 
+import Hr.Mgr.domain.entity.Employee;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,10 +12,12 @@ public class EmployeeResDto {
     private String email;
     private Integer age;
 
-    public EmployeeResDto(Long id, String name, String email, int age) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
-        this.age = age;
+
+
+    public EmployeeResDto(Employee employee) {
+        this.id = employee.getId();
+        this.name = employee.getName();
+        this.email = employee.getEmail();
+        this.age = employee.getAge();
     }
 }

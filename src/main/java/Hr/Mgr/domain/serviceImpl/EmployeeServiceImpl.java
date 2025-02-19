@@ -2,10 +2,13 @@ package Hr.Mgr.domain.serviceImpl;
 
 import Hr.Mgr.domain.dto.EmployeeReqDto;
 import Hr.Mgr.domain.dto.EmployeeResDto;
+import Hr.Mgr.domain.entity.Department;
 import Hr.Mgr.domain.entity.Employee;
 import Hr.Mgr.domain.exception.EmployeeNotFoundException;
+import Hr.Mgr.domain.repository.DepartmentRepository;
 import Hr.Mgr.domain.repository.EmployeeRepository;
 import Hr.Mgr.domain.service.EmployeeService;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,13 +24,16 @@ public class EmployeeServiceImpl implements EmployeeService {
     private static final Logger logger = LoggerFactory.getLogger(EmployeeService.class);
     private final EmployeeRepository employeeRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final DepartmentRepository departmentRepository;
 
-    public EmployeeServiceImpl(EmployeeRepository employeeRepository, BCryptPasswordEncoder passwordEncoder) {
+    public EmployeeServiceImpl(EmployeeRepository employeeRepository, BCryptPasswordEncoder passwordEncoder, DepartmentRepository departmentRepository) {
         this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
+        this.departmentRepository = departmentRepository;
     }
 
     @Override
+    @Transactional
     public Long createEmployee(EmployeeReqDto request) {
         logger.info(" 회원가입 요청: 이메일={}, 이름={}", request.getEmail(), request.getName());
 
@@ -68,31 +74,42 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public EmployeeResDto getEmployeeById(Long employeeId) {
         return employeeRepository.findById(employeeId)
-                .map(emp -> { return new EmployeeResDto(
-                        emp.getId(),
-                        emp.getName(),
-                        emp.getEmail(),
-                        emp.getAge());
-        }).orElseThrow(() -> new EmployeeNotFoundException("해당 ID의 직원을 찾을 수 없습니다: " + employeeId));
+                .map(EmployeeResDto::new)
+                .orElseThrow(() -> new EmployeeNotFoundException("해당 ID의 직원을 찾을 수 없습니다: " + employeeId));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<EmployeeResDto> getEmployees() {
 
         return employeeRepository.findAll().stream()
-                .map(emp -> new EmployeeResDto(
-                        emp.getId(),
-                        emp.getName(),
-                        emp.getEmail(),
-                        emp.getAge()
-                ))
+                .map(EmployeeResDto::new)
                 .toList();
     }
 
     @Override
+    @Transactional
     public void deleteEmployee(Long id) {
         employeeRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public EmployeeResDto updateDepartment(Long employeeId, Long departmentId) {
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new IllegalArgumentException("no department found"));
+
+
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("no employee found"));
+
+        employee.setDepartment(department);
+        department.getEmployees().add(employee);
+
+        return new EmployeeResDto(employeeRepository.save(employee));
+
     }
 }

@@ -26,6 +26,10 @@ public class Employee {
     @Column(nullable = false)
     private Integer age;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
+
     public Employee() {
     }
 

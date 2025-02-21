@@ -12,6 +12,8 @@ public interface FileService {
     Resource downloadFile(Long fileId);
     Resource downloadFileByName(String fileName);
     FileDto listTopFileByEmployeeId(Long employeeId);
+
+
     List<FileDto> listFiles();
     List<FileDto> listFilesByEmployee(Long employeeId);
     FileDto updateFile(Long fileId, MultipartFile newFile);

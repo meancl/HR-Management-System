@@ -15,10 +15,15 @@ public class Department {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
 
     @OneToMany(mappedBy = "department")
     private List<Employee> employees = new ArrayList<>();
 
     public Department(){}
+
+    public Department(String name) {
+        this.name = name;
+    }
 }

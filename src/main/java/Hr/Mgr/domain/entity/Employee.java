@@ -33,10 +33,11 @@ public class Employee {
     public Employee() {
     }
 
-    public Employee(String name, String email ,String hashedPwd, Integer age) {
+    public Employee(String name, String email ,String hashedPwd, Integer age, Department department) {
         this.hashedPwd = hashedPwd;
         this.email = email;
         this.name = name;
         this.age = age;
+        this.department = department;
     }
 }

@@ -3,6 +3,8 @@ package Hr.Mgr.domain.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 
@@ -16,6 +18,7 @@ public class NoticeFile {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "notice_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Notice notice;
 
     @ManyToOne(fetch = FetchType.LAZY)

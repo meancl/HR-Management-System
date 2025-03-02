@@ -1,6 +1,8 @@
 package Hr.Mgr.domain.entity;
 
+import Hr.Mgr.domain.enums.EmployeeStatus;
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -30,6 +32,8 @@ public class Employee {
     @JoinColumn(name = "department_id")
     private Department department;
 
+    @Enumerated
+    private EmployeeStatus employeeStatus;
     public Employee() {
     }
 
@@ -39,5 +43,6 @@ public class Employee {
         this.name = name;
         this.age = age;
         this.department = department;
+        this.employeeStatus = EmployeeStatus.PROBATION;
     }
 }

@@ -3,9 +3,7 @@ package Hr.Mgr.domain.serviceImpl;
 import Hr.Mgr.domain.dto.AttendanceReqDto;
 import Hr.Mgr.domain.dto.AttendanceResDto;
 import Hr.Mgr.domain.dto.EmployeeReqDto;
-import Hr.Mgr.domain.entity.Attendance;
 import Hr.Mgr.domain.enums.AttendanceStatus;
-import Hr.Mgr.domain.repository.EmployeeRepository;
 import Hr.Mgr.domain.service.AttendanceService;
 import Hr.Mgr.domain.service.EmployeeService;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,7 +13,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -68,20 +65,20 @@ class AttendanceServiceImplTest {
 
     @Test
     void getLatestAttendanceByEmployee() {
-        AttendanceResDto latestAttendanceByEmployee = attendanceService.getLatestAttendanceByEmployee(employeeId);
+        AttendanceResDto latestAttendanceByEmployee = attendanceService.findLatestAttendanceDtoByEmployeeId(employeeId);
         assertThat(latestAttendanceByEmployee.getStatus()).isNotEqualTo(AttendanceStatus.ABSENT);
     }
 
     @Test
     void getAttendanceById() {
-        AttendanceResDto attendanceById = attendanceService.getAttendanceById(attendance.getId());
+        AttendanceResDto attendanceById = attendanceService.findAttendanceDtoById(attendance.getId());
         assertThat(attendanceById)
                 .usingRecursiveComparison().isEqualTo(attendance);
     }
 
     @Test
     void getAttendancesByEmployee() {
-        List<AttendanceResDto> attendancesByEmployee = attendanceService.getAttendancesByEmployee(employeeId);
+        List<AttendanceResDto> attendancesByEmployee = attendanceService.findAttendanceDtosByEmployeeId(employeeId);
         assertThat(attendancesByEmployee.size()).isEqualTo(1);
     }
 
@@ -99,7 +96,7 @@ class AttendanceServiceImplTest {
         attendanceService.deleteAttendance(attendance.getId());
 
         assertThrows(IllegalArgumentException.class,
-                () -> attendanceService.getLatestAttendanceByEmployee(employeeId));
+                () -> attendanceService.findLatestAttendanceDtoByEmployeeId(employeeId));
     }
 
 }

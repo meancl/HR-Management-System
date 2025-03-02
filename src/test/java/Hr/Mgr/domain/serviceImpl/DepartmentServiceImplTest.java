@@ -76,7 +76,7 @@ class DepartmentServiceImplTest {
         when(departmentRepository.findAll()).thenReturn(List.of(department));
 
         // When
-        List<DepartmentDto> result = departmentService.listDepartments();
+        List<DepartmentDto> result = departmentService.findAllDepartmentDtos();
 
         // Then
         assertNotNull(result);
@@ -91,7 +91,7 @@ class DepartmentServiceImplTest {
         when(departmentRepository.findById(anyLong())).thenReturn(Optional.of(department));
 
         // When
-        List<EmployeeResDto> result = departmentService.listEmployeesByDepartment(1L);
+        List<EmployeeResDto> result = departmentService.findEmployeeDtosByDepartmentId(1L);
 
         // Then
         assertNotNull(result);
@@ -105,7 +105,7 @@ class DepartmentServiceImplTest {
         when(departmentRepository.findById(anyLong())).thenReturn(Optional.empty());
 
         // Then
-        assertThrows(IllegalArgumentException.class, () -> departmentService.listEmployeesByDepartment(1L));
+        assertThrows(IllegalArgumentException.class, () -> departmentService.findEmployeeDtosByDepartmentId(1L));
     }
 
     @Test
@@ -114,7 +114,7 @@ class DepartmentServiceImplTest {
         when(employeeRepository.findById(anyLong())).thenReturn(Optional.of(employee));
 
         // When
-        DepartmentDto result = departmentService.findDepartmentByEmployee(100L);
+        DepartmentDto result = departmentService.findDepartmentDtoByEmployeeId(100L);
 
         // Then
         assertNotNull(result);
@@ -127,7 +127,7 @@ class DepartmentServiceImplTest {
         when(employeeRepository.findById(anyLong())).thenReturn(Optional.empty());
 
         // Then
-        assertThrows(IllegalArgumentException.class, () -> departmentService.findDepartmentByEmployee(100L));
+        assertThrows(IllegalArgumentException.class, () -> departmentService.findDepartmentDtoByEmployeeId(100L));
     }
 
     @Test
@@ -137,7 +137,7 @@ class DepartmentServiceImplTest {
         when(employeeRepository.findById(anyLong())).thenReturn(Optional.of(employee));
 
         // Then
-        assertThrows(RuntimeException.class, () -> departmentService.findDepartmentByEmployee(100L));
+        assertThrows(RuntimeException.class, () -> departmentService.findDepartmentDtoByEmployeeId(100L));
     }
 
     @Test

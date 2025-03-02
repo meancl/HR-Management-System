@@ -22,7 +22,7 @@ public class EmployeeController {
     // ✅ 직원확인 폼 표시
     @GetMapping
     public String listEmployees(Model model) {
-        List<EmployeeResDto> employees = employeeService.getEmployees();
+        List<EmployeeResDto> employees = employeeService.findAllEmployeeDtos();
         model.addAttribute("employees", employees);
         return "/employee/listEmployees";
     }
@@ -30,7 +30,7 @@ public class EmployeeController {
     // ✅ 특정 직원확인 폼 표시
     @GetMapping("/{id}")
     public String listEmployee(@PathVariable("id") Long id, Model model) {
-        EmployeeResDto employee = employeeService.getEmployeeById(id);
+        EmployeeResDto employee = employeeService.findEmployeeDtoById(id);
         model.addAttribute("employee", employee);
         return "/employee/listEmployee";
     }
@@ -54,7 +54,7 @@ public class EmployeeController {
     // ✅ 직원 수정 폼
     @GetMapping("/edit/{id}")
     public String showEditForm(@PathVariable("id") Long id, Model model) {
-        EmployeeResDto employeeById = employeeService.getEmployeeById(id);
+        EmployeeResDto employeeById = employeeService.findEmployeeDtoById(id);
 
         EmployeeReqDto employeeReqDto = new EmployeeReqDto();
 

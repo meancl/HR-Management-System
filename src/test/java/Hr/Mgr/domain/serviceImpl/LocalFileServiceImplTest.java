@@ -4,7 +4,6 @@ import Hr.Mgr.domain.dto.EmployeeReqDto;
 import Hr.Mgr.domain.dto.FileDto;
 import Hr.Mgr.domain.service.EmployeeService;
 import Hr.Mgr.domain.service.FileService;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +12,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.Assert;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,7 +57,7 @@ class LocalFileServiceImplTest {
                 "file", fileName, contentType, fileContent);
 
         // 3. 테스트 대상 메서드 호출 (예: 파일 업로드)
-        FileDto uploadedFileDto = fileService.uploadFile(mockFile, employeeId);
+        FileDto uploadedFileDto = fileService.createFile(mockFile, employeeId);
 
         // 4. 업로드된 파일 데이터 검증
         assertNotNull(uploadedFileDto);
@@ -78,8 +76,8 @@ class LocalFileServiceImplTest {
                 "file", fileName, contentType, fileContent);
 
         // 3. 테스트 대상 메서드 호출 (예: 파일 업로드)
-        FileDto fileDto = fileService.uploadFile(mockFile, employeeId);
-        Resource resource1 = fileService.downloadFile(fileDto.getId());
+        FileDto fileDto = fileService.createFile(mockFile, employeeId);
+        Resource resource1 = fileService.findFileResourceById(fileDto.getId());
 
         assertThat(resource1.getFilename()).isEqualTo(fileName);
 
@@ -100,8 +98,8 @@ class LocalFileServiceImplTest {
                 "file", fileName, contentType, fileContent);
 
         // 3. 테스트 대상 메서드 호출 (예: 파일 업로드)
-        FileDto fileDto = fileService.uploadFile(mockFile, employeeId);
-        List<FileDto> fileDtos = fileService.listFiles();
+        FileDto fileDto = fileService.createFile(mockFile, employeeId);
+        List<FileDto> fileDtos = fileService.findAllFileDtos();
 
         assertThat(fileDtos.size()).isEqualTo(1);
     }
@@ -121,7 +119,7 @@ class LocalFileServiceImplTest {
                 "file", fileName, contentType, fileContent);
 
         // 3. 테스트 대상 메서드 호출 (예: 파일 업로드)
-        FileDto fileDto = fileService.uploadFile(mockFile, employeeId);
+        FileDto fileDto = fileService.createFile(mockFile, employeeId);
 
         byte[] updateFileContent = "This is a test file content. but it is updated".getBytes(); // 파일 내용
         String updateFileName = "testFileUpdated.txt"; // 파일 이름
@@ -148,10 +146,10 @@ class LocalFileServiceImplTest {
                 "file", fileName, contentType, fileContent);
 
         // 3. 테스트 대상 메서드 호출 (예: 파일 업로드)
-        FileDto fileDto = fileService.uploadFile(mockFile, employeeId);
+        FileDto fileDto = fileService.createFile(mockFile, employeeId);
         fileService.deleteFile(fileDto.getId());
 
         assertThrows(RuntimeException.class,
-                () -> fileService.listTopFileByEmployeeId(employeeId));
+                () -> fileService.findLatestFileDtoByEmployeeId(employeeId));
     }
 }

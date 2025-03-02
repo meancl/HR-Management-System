@@ -3,8 +3,8 @@ package Hr.Mgr.domain.serviceImpl;
 import Hr.Mgr.domain.dto.FileDto;
 import Hr.Mgr.domain.entity.Employee;
 import Hr.Mgr.domain.entity.FileEntity;
-import Hr.Mgr.domain.repository.EmployeeRepository;
 import Hr.Mgr.domain.repository.FileRepository;
+import Hr.Mgr.domain.service.EmployeeService;
 import Hr.Mgr.domain.service.FileService;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -16,7 +16,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,63 +24,76 @@ public class LocalFileServiceImpl implements FileService {
 
     private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
     private final FileRepository fileRepository;
+    private final EmployeeService employeeService;
 
-    private final EmployeeRepository employeeRepository;
-
-    public LocalFileServiceImpl(FileRepository fileRepository, EmployeeRepository employeeRepository) throws IOException {
+    public LocalFileServiceImpl(FileRepository fileRepository, EmployeeService employeeService) throws IOException {
         this.fileRepository = fileRepository;
-        this.employeeRepository = employeeRepository;
-        Files.createDirectories(fileStorageLocation); // 폴더 생성
+        this.employeeService = employeeService;
+
+        if(Files.notExists(fileStorageLocation))
+            Files.createDirectories(fileStorageLocation); // 폴더 생성
     }
 
     @Override
-    public FileDto uploadFile(MultipartFile file, Long uploaderId) {
+    public FileDto createFile(MultipartFile file, Long uploaderId) {
+        return new FileDto(createFileEntity(file, uploaderId));
+    }
+
+    @Override
+    public FileEntity createFileEntity(MultipartFile file, Long uploaderId) {
         try {
 
             String fileName = StringUtils.cleanPath(file.getOriginalFilename());
             boolean fileExists = fileRepository.existsByFileName(fileName);
-            if (fileExists) {
-                throw new FileAlreadyExistsException("파일이 이미 존재합니다: " + fileName);
+            FileEntity savedFileEntity;
+
+            if (fileExists) { // 그거 줘버려
+                savedFileEntity = fileRepository.findByFileName(fileName)
+                        .orElseThrow(() -> new IllegalArgumentException("No file found"));
             }
+            else {
+                Path targetLocation = fileStorageLocation.resolve(fileName);
+                Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-            Path targetLocation = fileStorageLocation.resolve(fileName);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+                Employee employeeOrThrow = employeeService.findEmployeeEntityById(uploaderId);
 
-            Employee employeeOrThrow = findEmployeeOrThrow(uploaderId);
-
-            FileEntity fileEntity = new FileEntity();
-            fileEntity.setFileName(fileName);
-            fileEntity.setFilePath(targetLocation.toString());
-            fileEntity.setFileType(file.getContentType());
-            fileEntity.setFileSize(file.getSize());
-            fileEntity.setUploadedBy(employeeOrThrow);
-
-            return new FileDto(fileRepository.save(fileEntity));
+                FileEntity fileEntity = new FileEntity();
+                fileEntity.setFileName(fileName);
+                fileEntity.setFilePath(targetLocation.toString());
+                fileEntity.setFileType(file.getContentType());
+                fileEntity.setFileSize(file.getSize());
+                fileEntity.setUploadedBy(employeeOrThrow);
+                savedFileEntity = fileRepository.save(fileEntity);
+            }
+            return savedFileEntity;
 
         } catch (IOException e) {
             throw new RuntimeException("파일 저장 중 오류 발생", e);
         }
     }
-    private Employee findEmployeeOrThrow(Long uploaderId) {
-        return employeeRepository.findById(uploaderId)
-                .orElseThrow(() -> new IllegalArgumentException("No employee found with ID: " + uploaderId));
-    }
 
     @Override
-    public Resource downloadFile(Long fileId) {
+    public Resource findFileResourceById(Long fileId) {
         return getResource(fileRepository.findById(fileId)
                 .orElseThrow(() -> new RuntimeException("파일을 찾을 수 없음")));
     }
 
     @Override
-    public Resource downloadFileByName(String fileName) {
+    public Resource findFileResourceByName(String fileName) {
         FileEntity fileEntity = fileRepository.findByFileName(fileName)
                 .orElseThrow(() -> new RuntimeException("파일을 찾을 수 없음: " + fileName));
         return getResource(fileEntity);
     }
 
     @Override
-    public FileDto listTopFileByEmployeeId(Long employeeId) {
+    public FileDto findFileDtoById(Long fileId) {
+        FileEntity fileEntity = fileRepository.findById(fileId)
+                .orElseThrow(() -> new RuntimeException("파일을 찾을 수 없음"));
+        return new FileDto(fileEntity);
+    }
+
+    @Override
+    public FileDto findLatestFileDtoByEmployeeId(Long employeeId) {
         return fileRepository.findTopByUploadedBy_IdOrderByUploadedAtDesc(employeeId)
                 .map(FileDto::new)
                 .orElseThrow(() -> new RuntimeException("파일을 찾을 수 없음 by :" + employeeId));
@@ -97,14 +109,14 @@ public class LocalFileServiceImpl implements FileService {
     }
 
     @Override
-    public List<FileDto> listFiles() {
+    public List<FileDto> findAllFileDtos() {
         return fileRepository.findAll().stream()
                 .map(FileDto::new)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<FileDto> listFilesByEmployee(Long employeeId) {
+    public List<FileDto> findFileDtosByEmployeeId(Long employeeId) {
         return fileRepository.findByUploadedBy_Id(employeeId).stream()
                 .map(FileDto::new)
                 .collect(Collectors.toList());

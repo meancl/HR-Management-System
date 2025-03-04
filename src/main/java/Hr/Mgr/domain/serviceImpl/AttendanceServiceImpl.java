@@ -11,9 +11,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.List;
 
 import static java.util.Arrays.stream;
@@ -25,15 +27,30 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final EmployeeService employeeService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
+    static final String ATTENDANCE_LOCK_KEY = "attendance create lock";
     @Override
     public AttendanceResDto createAttendance(AttendanceReqDto dto) {
-        Employee employee = employeeService.findEmployeeEntityById(dto.getEmployeeId());
-        Attendance attendance = new Attendance(
-                employee, dto.getAttendanceDate(), dto.getCheckInTime(), dto.getCheckOutTime(), dto.getAttendanceStatus()
-        );
 
-        return new AttendanceResDto(attendanceRepository.save(attendance));
+        Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(ATTENDANCE_LOCK_KEY, "lock", Duration.ofSeconds(10));
+
+        if (lockAcquired == null || !lockAcquired) {
+            return null; // 이미 락이 설정되어 있으면 생성 불가
+        }
+
+        try{
+
+            Employee employee = employeeService.findEmployeeEntityById(dto.getEmployeeId());
+            Attendance attendance = new Attendance(
+                    employee, dto.getAttendanceDate(), dto.getCheckInTime(), dto.getCheckOutTime(), dto.getAttendanceStatus()
+            );
+
+            return new AttendanceResDto(attendanceRepository.save(attendance));
+        }
+        finally {
+            redisTemplate.delete(ATTENDANCE_LOCK_KEY);
+        }
     }
 
     @Override

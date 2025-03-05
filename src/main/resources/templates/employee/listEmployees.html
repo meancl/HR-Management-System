@@ -55,6 +55,32 @@
         .btn:hover {
             background-color: #0056b3;
         }
+           .pagination {
+            margin: 20px 0;
+            padding: 10px;
+        }
+
+        .pagination a {
+            margin: 0 5px;
+            padding: 8px 16px;
+            background-color: #f4f4f4;
+            border-radius: 5px;
+            text-decoration: none;
+            color: black;
+        }
+
+        .pagination a:hover {
+            background-color: #ddd;
+        }
+
+        .current-page {
+            background-color: #007BFF;
+            color: white;
+        }
+
+        .disabled {
+            display : none;
+        }
     </style>
 </head>
 <body>
@@ -73,7 +99,7 @@
     </tr>
     </thead>
     <tbody>
-    <tr th:each="employee : ${employees}" th:if="${employee.status != T(Hr.Mgr.domain.enums.EmployeeStatus).TERMINATED}">
+    <tr th:each="employee : ${employees.content}" th:if="${employee.status != T(Hr.Mgr.domain.enums.EmployeeStatus).TERMINATED}">
         <td th:text="${employee.id}"></td>
         <td th:text="${employee.name}"></td>
         <td>
@@ -89,6 +115,20 @@
     </tr>
     </tbody>
 </table>
+
+<div class="pagination">
+    <!-- 이전 페이지 링크 -->
+    <a th:href="@{/employees(page=${employees.number - 1}, size=${employees.size})}"
+       th:classappend="${employees.hasPrevious() ? '' : 'disabled'}">이전</a>
+
+    <!-- 현재 페이지 -->
+    <span class="current-page" th:text="${employees.number + 1}"></span> / <span th:text="${employees.totalPages}"></span> <!-- 현재 페이지 번호 / 전체 페이지 수 -->
+
+    <!-- 다음 페이지 링크 -->
+    <a th:href="@{/employees(page=${employees.number + 1}, size=${employees.size})}"
+       th:classappend="${employees.hasNext() ? '' : 'disabled'}">다음</a>
+</div>
+
 
 <a href="/employees/register" class="btn">직원 추가</a>
 

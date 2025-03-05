@@ -13,6 +13,8 @@ import Hr.Mgr.domain.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,12 +91,20 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<EmployeeResDto> findAllEmployeeDtos(Pageable pageable) {
+
+        return employeeRepository.findAll(pageable)
+//                .filter(employee-> employee.getEmployeeStatus() != EmployeeStatus.TERMINATED)
+                .map(EmployeeResDto::new);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<EmployeeResDto> findAllEmployeeDtos() {
 
         return employeeRepository.findAll().stream()
 //                .filter(employee-> employee.getEmployeeStatus() != EmployeeStatus.TERMINATED)
-                .map(EmployeeResDto::new)
-                .toList();
+                .map(EmployeeResDto::new).toList();
     }
 
     @Override

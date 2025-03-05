@@ -3,6 +3,9 @@ package Hr.Mgr.domain.controller;
 import Hr.Mgr.domain.dto.EmployeeReqDto;
 import Hr.Mgr.domain.dto.EmployeeResDto;
 import Hr.Mgr.domain.service.EmployeeService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -21,8 +24,12 @@ public class EmployeeController {
 
     // ✅ 직원확인 폼 표시
     @GetMapping
-    public String listEmployees(Model model) {
-        List<EmployeeResDto> employees = employeeService.findAllEmployeeDtos();
+    public String listEmployees(@RequestParam(defaultValue = "0") int page,
+                                @RequestParam(defaultValue = "10") int size,
+                                Model model) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<EmployeeResDto> employees = employeeService.findAllEmployeeDtos(pageable);
         model.addAttribute("employees", employees);
         return "/employee/listEmployees";
     }

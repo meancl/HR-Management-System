@@ -1,137 +1,136 @@
 package Hr.Mgr.domain.init;
 
-import Hr.Mgr.domain.entity.Attendance;
-import Hr.Mgr.domain.entity.Department;
 import Hr.Mgr.domain.entity.Employee;
-import Hr.Mgr.domain.enums.AttendanceStatus;
-import Hr.Mgr.domain.repository.AttendanceRepository;
-import Hr.Mgr.domain.repository.DepartmentRepository;
+import Hr.Mgr.domain.entity.Department;
 import Hr.Mgr.domain.repository.EmployeeRepository;
+import Hr.Mgr.domain.repository.DepartmentRepository;
 import jakarta.annotation.PostConstruct;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 @Component
-@ConditionalOnProperty(name = "spring.jpa.hibernate.ddl-auto", havingValue = "create") // ✅ create일 때만 실행
-public class DataInitializer {
+public class DataInitializer implements CommandLineRunner {
 
+    @Value("${app.giant_data_init}") // YAML 변수 가져오기
+    private String dataInitMode;
     @Autowired
-    private EmployeeRepository employeeRepository;
+    private NamedParameterJdbcTemplate jdbcTemplate;
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
-
     @Autowired
     private DepartmentRepository departmentRepository;
 
-    @Autowired
-    private AttendanceRepository attendanceRepository;
+    private static final int BATCH_SIZE = 1000; // JDBC batch 크기 설정
+    private static final int CREATE_EMPLOYEE_NUMBER = 10000; // 생성할 직원 수
 
-    @PostConstruct
-    @Transactional
-    public void init() {
+    @Override
+    @Transactional 
+    public void run(String... args) throws Exception {
+
+        if (!"create".equalsIgnoreCase(dataInitMode)) {
+            System.out.println("✅ 데이터 초기화 스킵 (app.data-init = " + dataInitMode + ")");
+            return;
+        }
+
         Random random = new Random();
 
-        Department hr = departmentRepository.save(new Department("HR"));
-        Department finance = departmentRepository.save(new Department("Finance"));
-        Department engineering = departmentRepository.save(new Department("Engineering"));
-        Department sales = departmentRepository.save(new Department("Sales"));
-        Department marketing = departmentRepository.save(new Department("Marketing"));
-        Department support = departmentRepository.save(new Department("Customer Support"));
-        Department legal = departmentRepository.save(new Department("Legal"));
-        Department operations = departmentRepository.save(new Department("Operations"));
-        Department rnd = departmentRepository.save(new Department("Research & Development"));
-        Department it = departmentRepository.save(new Department("IT"));
+        // 부서 생성 및 저장
+        List<Department> departments = saveDepartments();
 
-        // 기본 데이터 삽입
-        List<Employee> employees = List.of(
-                new Employee("홍길동", "hong@company.com", bCryptPasswordEncoder.encode("password123"), 30, hr),
-                new Employee("김철수", "kim@company.com", bCryptPasswordEncoder.encode("password456"), 28, sales),
-                new Employee("이영희", "lee@company.com", bCryptPasswordEncoder.encode("password789"), 35, finance),
-                new Employee("박지민", "park@company.com", bCryptPasswordEncoder.encode("password111"), 27, marketing),
-                new Employee("최강욱", "choi@company.com", bCryptPasswordEncoder.encode("password222"), 32, hr),
-                new Employee("정유진", "jung@company.com", bCryptPasswordEncoder.encode("password333"), 29, it),
-                new Employee("나성민", "na@company.com", bCryptPasswordEncoder.encode("password444"), 33, rnd),
-                new Employee("오승현", "oh@company.com", bCryptPasswordEncoder.encode("password555"), 31, support),
-                new Employee("한지우", "han@company.com", bCryptPasswordEncoder.encode("password666"), 26, null), // ✅ 부서 없음
-                new Employee("이준호", "lee.junho@company.com", bCryptPasswordEncoder.encode("password777"), 34, operations),
-                new Employee("윤서영", "yoon@company.com", bCryptPasswordEncoder.encode("password888"), 27, null), // ✅ 부서 없음
-                new Employee("김보람", "kim.boram@company.com", bCryptPasswordEncoder.encode("password999"), 29, finance),
-                new Employee("임소연", "lim@company.com", bCryptPasswordEncoder.encode("password101"), 28, rnd),
-                new Employee("전은수", "jeon@company.com", bCryptPasswordEncoder.encode("password202"), 30, hr),
-                new Employee("송하나", "song@company.com", bCryptPasswordEncoder.encode("password303"), 32, it),
-                new Employee("강민수", "kang@company.com", bCryptPasswordEncoder.encode("password414"), 31, null), // ✅ 부서 없음
-                new Employee("서지훈", "seo@company.com", bCryptPasswordEncoder.encode("password525"), 29, sales),
-                new Employee("김하늘", "kim.haneul@company.com", bCryptPasswordEncoder.encode("password636"), 27, null), // ✅ 부서 없음
-                new Employee("이도윤", "lee.doyoon@company.com", bCryptPasswordEncoder.encode("password747"), 34, engineering),
-                new Employee("정민지", "jung.minji@company.com", bCryptPasswordEncoder.encode("password858"), 26, marketing),
-                new Employee("박은우", "park.eunwoo@company.com", bCryptPasswordEncoder.encode("password969"), 28, rnd),
-                new Employee("차서윤", "cha@company.com", bCryptPasswordEncoder.encode("password070"), 30, legal),
-                new Employee("한승호", "han.seungho@company.com", bCryptPasswordEncoder.encode("password181"), 35, support),
-                new Employee("오연서", "oh.yeonseo@company.com", bCryptPasswordEncoder.encode("password292"), 31, hr),
-                new Employee("배도윤", "bae@company.com", bCryptPasswordEncoder.encode("password303"), 33, engineering),
-                new Employee("신예은", "shin.yeeun@company.com", bCryptPasswordEncoder.encode("password414"), 29, it),
-                new Employee("유태양", "yoo@company.com", bCryptPasswordEncoder.encode("password525"), 27, rnd),
-                new Employee("남준혁", "nam@company.com", bCryptPasswordEncoder.encode("password636"), 30, operations),
-                new Employee("고은비", "go.eunbi@company.com", bCryptPasswordEncoder.encode("password747"), 26, support),
-                new Employee("문지훈", "moon@company.com", bCryptPasswordEncoder.encode("password858"), 35, finance),
-                new Employee("조서윤", "jo.seoyoon@company.com", bCryptPasswordEncoder.encode("password969"), 28, marketing),
-                new Employee("황인성", "hwang@company.com", bCryptPasswordEncoder.encode("password070"), 32, it),
-                new Employee("백예지", "baek@company.com", bCryptPasswordEncoder.encode("password181"), 27, legal),
-                new Employee("손민호", "son@company.com", bCryptPasswordEncoder.encode("password292"), 31, operations),
-                new Employee("엄다현", "um.dahyun@company.com", bCryptPasswordEncoder.encode("password303"), 30, null) // ✅ 부서 없음
-        );
+        // 이메일 중복 방지를 위한 Set
+        Set<String> usedEmails = new HashSet<>();
 
-        // ✅ 한 번에 저장
-        employeeRepository.saveAll(employees);
+        // 직원 데이터 생성
+        List<MapSqlParameterSource> batchParams = new ArrayList<>();
 
-        // ✅ 최근 30일 동안 출석 데이터 생성
-        for (Employee employee : employees) {
-            for (int i = 0; i < 30; i++) {
-                LocalDate attendanceDate = LocalDate.now().minusDays(i);
+        for (int i = 0; i < CREATE_EMPLOYEE_NUMBER; i++) {
+            String name = generateRandomName();
+            String email = generateUniqueEmail(usedEmails);
+            String password = bCryptPasswordEncoder.encode("password" + i);
+            Integer age = 20 + random.nextInt(40);
 
-                // 출근 시간 (지각 or 정상)
-                boolean isLate = random.nextDouble() < 0.2; // 20% 확률로 지각
-                LocalTime checkInTime = isLate ? LocalTime.of(9, random.nextInt(30) + 30) // 9:30 ~ 9:59 지각
-                        : LocalTime.of(9, random.nextInt(30)); // 9:00 ~ 9:29 정상
+            // 랜덤 부서 ID 할당 (NULL 가능)
+            Long departmentId = random.nextDouble() < 0.1 ? null : departments.get(random.nextInt(departments.size())).getId();
 
-                // 퇴근 시간
-                boolean isEarlyLeave = random.nextDouble() < 0.1; // 10% 확률로 조퇴
-                LocalTime checkOutTime = isEarlyLeave ? LocalTime.of(16, random.nextInt(60)) // 16:00 ~ 16:59 조퇴
-                        : LocalTime.of(18, random.nextInt(60)); // 18:00 ~ 18:59 정상 퇴근
+            // SQL 파라미터 바인딩
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("name", name)
+                    .addValue("email", email)
+                    .addValue("password", password)
+                    .addValue("age", age)
+                    .addValue("department_id", departmentId);
 
-                // 출석 상태 설정 (출근, 결근, 휴일, 지각 등)
-                AttendanceStatus status;
-                double chance = random.nextDouble();
-                if (chance < 0.05) {
-                    status = AttendanceStatus.ABSENT; // 5% 확률 결근
-                    checkInTime = null;
-                    checkOutTime = null;
-                } else if (chance < 0.1) {
-                    status = AttendanceStatus.HOLIDAY; // 5% 확률 휴일
-                    checkInTime = null;
-                    checkOutTime = null;
-                } else if (isLate) {
-                    status = AttendanceStatus.LATE; // 지각
-                } else if (isEarlyLeave) {
-                    status = AttendanceStatus.LEAVE; // 조퇴
-                } else {
-                    status = AttendanceStatus.PRESENT; // 정상 출근
-                }
+            batchParams.add(params);
 
-                // 출석 데이터 저장
-                attendanceRepository.save(new Attendance(employee, attendanceDate, checkInTime, checkOutTime, status));
+            // BATCH_SIZE 단위로 INSERT 실행
+            if (batchParams.size() >= BATCH_SIZE) {
+                System.out.println("done ");
+                batchInsertEmployees(batchParams);
+                batchParams.clear();
             }
         }
 
+        // 남은 데이터 처리
+        if (!batchParams.isEmpty()) {
+            batchInsertEmployees(batchParams);
+        }
+    }
 
+
+    @Transactional
+    // 부서 저장
+    private List<Department> saveDepartments() {
+        List<Department> departments = List.of(
+                new Department("HR"),
+                new Department("Finance"),
+                new Department("Engineering"),
+                new Department("Sales"),
+                new Department("Marketing"),
+                new Department("Customer Support"),
+                new Department("Legal"),
+                new Department("Operations"),
+                new Department("Research & Development"),
+                new Department("IT")
+        );
+        return departmentRepository.saveAll(departments);
+    }
+
+    // JDBC batch insert 실행
+    private void batchInsertEmployees(List<MapSqlParameterSource> batchParams) {
+        String sql = """
+            INSERT INTO employee (name, email, hashed_pwd, age, department_id) 
+            VALUES (:name, :email, :password, :age, :department_id)
+        """;
+        jdbcTemplate.batchUpdate(sql, batchParams.toArray(new MapSqlParameterSource[0]));
+    }
+
+    // 랜덤 이름 생성
+    private String generateRandomName() {
+        String[] firstNames = {"John", "Jane", "James", "Jill", "Jack", "Jake", "Jennifer", "Jessica", "Jonathan", "Jordan"};
+        String[] lastNames = {"Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Martinez", "Hernandez", "Lopez", "Gonzalez"};
+        Random random = new Random();
+        return firstNames[random.nextInt(firstNames.length)] + " " + lastNames[random.nextInt(lastNames.length)];
+    }
+
+    // 유니크 이메일 생성
+    private String generateUniqueEmail(Set<String> usedEmails) {
+        Random random = new Random();
+        String email;
+        do {
+            email = "user" + random.nextInt(1000000) + "@company.com";
+        } while (usedEmails.contains(email));
+        usedEmails.add(email);
+        return email;
     }
 }

@@ -9,9 +9,7 @@ import Hr.Mgr.domain.repository.EmployeeRepository;
 import Hr.Mgr.domain.repository.SalaryRepository;
 import Hr.Mgr.domain.service.SalaryService;
 
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,10 +24,6 @@ import java.util.stream.Collectors;
 public class SalaryServiceImpl implements SalaryService {
     private final SalaryRepository salaryRepository;
     private final EmployeeRepository employeeRepository;
-
-
-    @Autowired
-    private EntityManager entityManager;
 
 
     @Transactional

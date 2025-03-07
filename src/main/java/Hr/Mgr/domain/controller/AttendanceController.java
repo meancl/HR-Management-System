@@ -24,7 +24,7 @@ public class AttendanceController {
     public ResponseEntity<AttendanceResDto> createAttendance(@RequestBody AttendanceReqDto attendanceReqDto) {
 
 
-        AttendanceResDto attendance = attendanceService.createAttendance(attendanceReqDto);
+        AttendanceResDto attendance = attendanceService.createSingleAttendance(attendanceReqDto);
 
         if (attendance == null) {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).body(attendance);

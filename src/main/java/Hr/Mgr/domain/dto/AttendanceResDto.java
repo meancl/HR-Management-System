@@ -18,6 +18,7 @@ public class AttendanceResDto {
     private LocalTime checkOutTime;
     private AttendanceStatus status;
 
+
     public AttendanceResDto(Attendance attendance) {
         this.id = attendance.getId();
         this.employeeId = attendance.getEmployee().getId();

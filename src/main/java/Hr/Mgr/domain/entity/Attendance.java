@@ -35,6 +35,7 @@ public class Attendance {
     @Column(nullable = false)
     private AttendanceStatus status;
 
+
     // 출퇴근 시간을 체크하는 메서드 (사용 아직 안할 예정)
     public Duration getTotalWorkDuration() {
         if (checkInTime != null && checkOutTime != null) {

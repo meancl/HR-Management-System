@@ -6,7 +6,8 @@ import Hr.Mgr.domain.dto.AttendanceResDto;
 import java.util.List;
 
 public interface AttendanceService {
-    AttendanceResDto createAttendance(AttendanceReqDto dto);
+    AttendanceResDto createSingleAttendance(AttendanceReqDto dto);
+    List<AttendanceResDto> createBatchAttendances(List<AttendanceReqDto> dtos);
     AttendanceResDto findLatestAttendanceDtoByEmployeeId(Long employeeId);
     AttendanceResDto findAttendanceDtoById(Long attendanceId);
     List<AttendanceResDto> findAttendanceDtosByEmployeeId(Long employeeId);

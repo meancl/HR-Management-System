@@ -31,9 +31,11 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     static final String ATTENDANCE_LOCK_KEY = "attendance create lock";
     @Override
-    public AttendanceResDto createAttendance(AttendanceReqDto dto) {
+    public AttendanceResDto createSingleAttendance(AttendanceReqDto dto) {
 
-        Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(ATTENDANCE_LOCK_KEY, "lock", Duration.ofSeconds(10));
+        String lockKey = ATTENDANCE_LOCK_KEY + dto.getEmployeeId();
+
+        Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, "lock", Duration.ofSeconds(10));
 
         if (lockAcquired == null || !lockAcquired) {
             return null; // 이미 락이 설정되어 있으면 생성 불가
@@ -49,8 +51,13 @@ public class AttendanceServiceImpl implements AttendanceService {
             return new AttendanceResDto(attendanceRepository.save(attendance));
         }
         finally {
-            redisTemplate.delete(ATTENDANCE_LOCK_KEY);
+            redisTemplate.delete(lockKey);
         }
+    }
+
+    @Override
+    public List<AttendanceResDto> createBatchAttendances(List<AttendanceReqDto> dtos) {
+        return null;
     }
 
     @Override

@@ -10,12 +10,14 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     properties:
       hibernate:
         show_sql: true
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
+
+
 
   jackson:
     property-naming-strategy: SNAKE_CASE
@@ -37,3 +39,17 @@ logging:
   level:
     org.hibernate.sql: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
+
+app:
+  giant_data_init: none
+
+server:
+  connection-timeout: 120s  # 클라이언트 요청 수락을 기다리는 최대 시간
+  tomcat:
+    max-threads: 2000
+    accept-count: 12000
+    connection-timeout: 60s # Keep-Alive 연결 유지 시간 증가
+#    accesslog:
+#      enabled: true
+#      pattern: "%h %l %u %t %r %s %b"
+#    basedir: logs

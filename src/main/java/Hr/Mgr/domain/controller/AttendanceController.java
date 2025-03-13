@@ -7,10 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 @Controller
 @RequestMapping("/attendances")
@@ -19,17 +16,22 @@ public class AttendanceController {
 
     private final AttendanceService attendanceService;
 
+
     @PostMapping("/new")
     @ResponseBody
-    public ResponseEntity<AttendanceResDto> createAttendance(@RequestBody AttendanceReqDto attendanceReqDto) {
+    public ResponseEntity<?> createAttendance(@RequestBody AttendanceReqDto attendanceReqDto) {
 
 
-        AttendanceResDto attendance = attendanceService.createSingleAttendance(attendanceReqDto);
+        AttendanceResDto attendance = attendanceService.createAttendance(attendanceReqDto);
 
         if (attendance == null) {
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(attendance);
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        }
+        else if(!attendance.getIsProcessed()){ // 처리중
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body("처리중입니다...");
         }
         return ResponseEntity.ok().body(attendance);
     }
+
 
 }

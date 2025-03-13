@@ -39,6 +39,9 @@ dependencies {
 
 	// redis 사용
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	// kafka 사용
+	implementation 'org.springframework.kafka:spring-kafka'
 }
 
 tasks.named('test') {

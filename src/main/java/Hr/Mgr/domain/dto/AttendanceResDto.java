@@ -17,7 +17,7 @@ public class AttendanceResDto {
     private LocalTime checkInTime;
     private LocalTime checkOutTime;
     private AttendanceStatus status;
-
+    private Boolean isProcessed;
 
     public AttendanceResDto(Attendance attendance) {
         this.id = attendance.getId();
@@ -26,5 +26,8 @@ public class AttendanceResDto {
         this.checkInTime = attendance.getCheckInTime();
         this.checkOutTime = attendance.getCheckOutTime();
         this.status = attendance.getStatus();
+        this.isProcessed = true;
     }
+
+    public AttendanceResDto(){}
 }

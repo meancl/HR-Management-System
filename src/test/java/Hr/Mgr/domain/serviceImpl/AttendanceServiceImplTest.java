@@ -54,9 +54,14 @@ class AttendanceServiceImplTest {
         attendanceReqDto.setCheckOutTime(LocalTime.of(18, 7, 12));
         attendanceReqDto.setAttendanceStatus(AttendanceStatus.PRESENT);
 
-        attendance = attendanceService.createSingleAttendance(attendanceReqDto);
+        attendance = attendanceService.createAttendance(attendanceReqDto);
     }
 
+
+    @Test
+    void hasRemainingRecordsTest(){
+        attendanceService.deleteAttendance(2L);
+    }
 
     @Test
     void createAttendance() {

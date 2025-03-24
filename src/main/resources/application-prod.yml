@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:mysql://mjhr.duckdns.org:3306/hr_mgr?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    properties:
+      hibernate:
+        show_sql: false
+
+  redis:
+    host: mjhr.duckdns.org  # 여기에 localhost, 127.0.0.1이 아닌 올바른 Redis 서버 주소를 입력
+    port: 6379
+    password: ""  # Redis에 패스워드가 있으면 입력
+    timeout: 6000
+    connect-timeout: 6000
+
+
+  kafka:
+    bootstrap-servers: localhost:9093
+#    bootstrap-servers: mjhr.duckdns.org:9092
+
+  thymeleaf:
+    prefix: classpath:/BOOT-INF/classes/templates/
+    suffix: .html
+    cache: false
+    check-template-location: true

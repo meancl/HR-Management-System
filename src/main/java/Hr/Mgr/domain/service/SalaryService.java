@@ -18,6 +18,5 @@ public interface SalaryService {
     SalaryResDto updateSalary(Long salaryId, SalaryReqDto dto);
     void deleteSalary(Long salaryId);
     SalaryResDto markAsPaid(Long salaryId);
-
     void updateSalaryAmountAndLocalDate(Long salaryId, BigDecimal newAmount, LocalDate newDate);
 }

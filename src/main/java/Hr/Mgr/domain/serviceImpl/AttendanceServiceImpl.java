@@ -7,11 +7,15 @@ import Hr.Mgr.domain.entity.Employee;
 import Hr.Mgr.domain.repository.AttendanceRepository;
 import Hr.Mgr.domain.service.AttendanceService;
 import Hr.Mgr.domain.service.EmployeeService;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -40,18 +44,17 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final KafkaTemplate<String, AttendanceReqDto> kafkaTemplate;
-
+    private static final Logger logger = LoggerFactory.getLogger(AttendanceService.class);
     private Boolean isBatchModeActive = false;
 
     private static final String ATTENDANCE_LOCK_KEY = "attendance create lock";
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
-    private final String attendanceKey = "attendance-key";
-    @Value("${spring.kafka-var.topic.attendance}")
-    private String attendanceTopic ;
-    @Value("${spring.kafka-var.group-id.attendance}")
+//    private final String attendanceKey = "attendance-key";
+    private String attendanceTopic = "attendance-topic";
+    @Value("${spring.kafka.consumer.group-id}")
     private String attendanceGroupId;
-    @Value("${spring.kafka-var.server}")
+    @Value("${spring.kafka.bootstrap-servers}")
     private String kafkaServer;
 
 
@@ -68,7 +71,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         // create Attendance
         try {
             if (isBatchModeActive) {
-                kafkaTemplate.send(attendanceTopic, attendanceKey, dto);  // key로 partition 고정
+                kafkaTemplate.send(attendanceTopic, dto);  // key로 partition 고정
                 AttendanceResDto returnDto = new AttendanceResDto();
                 returnDto.setIsProcessed(false);
                 return returnDto;
@@ -107,7 +110,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             else {
                 long durationSeconds = Duration.between(batchInitTime, LocalDateTime.now()).toSeconds();
                 if (durationSeconds <= ACCESS_INTERVAL_SECONDS && batchFrequencyCounter >= MAX_ACCESS_COUNT) {
-                    System.out.println("batch mode 수행");
+                    logger.info("batch mode 수행");
                     isBatchModeActive = true;
                     scheduler.schedule(this::checkRemainingRecords, BATCH_DELAY, TimeUnit.SECONDS);
                 } else if (durationSeconds > ACCESS_INTERVAL_SECONDS)
@@ -117,10 +120,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     private void checkRemainingRecords() {
-        System.out.println("batch 연기 여부 확인");
-        int numPartitions = 1;
-        int partition = Math.abs(attendanceKey.hashCode() % numPartitions); // key에 매핑되는 파티션 가져오기
-        TopicPartition topicPartition = new TopicPartition(attendanceTopic, partition);
+        logger.info("Batch 연기 여부 확인");
 
         Properties consumerProps = new Properties();
         consumerProps.put("bootstrap.servers", kafkaServer);
@@ -129,31 +129,54 @@ public class AttendanceServiceImpl implements AttendanceService {
         consumerProps.put("group.id", attendanceGroupId);
         consumerProps.put("auto.offset.reset", "latest");
 
-        try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps)){
-            consumer.assign(Collections.singletonList(topicPartition));
+        try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps)) {
+            // 1. 토픽의 모든 파티션 가져오기
+            List<PartitionInfo> partitions = consumer.partitionsFor(attendanceTopic);
+            List<TopicPartition> topicPartitions = partitions.stream()
+                    .map(p -> new TopicPartition(attendanceTopic, p.partition()))
+                    .toList();
 
-            long endOffset = consumer.endOffsets(Collections.singletonList(topicPartition)).get(topicPartition);
-            Map<TopicPartition, OffsetAndMetadata> committedOffsets = consumer.committed(Collections.singleton(topicPartition));
-            long currentOffset = committedOffsets != null && committedOffsets.containsKey(topicPartition) ?
-                    committedOffsets.get(topicPartition).offset() : 0;
-            if(currentOffset < endOffset){
-                System.out.println("batch mode 연장");
-                scheduler.schedule(this::checkRemainingRecords, BATCH_DELAY, TimeUnit.SECONDS);
+            // 2. 파티션 할당
+            consumer.assign(topicPartitions);
+
+            // 3. 파티션별 offset 상태 확인
+            Map<TopicPartition, Long> endOffsets = consumer.endOffsets(topicPartitions);
+            Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
+            for (TopicPartition tp : topicPartitions) {
+                OffsetAndMetadata committed = consumer.committed(tp);
+                committedOffsets.put(tp, committed != null ? committed : new OffsetAndMetadata(0));
             }
 
-            else
-            {
-                System.out.println("batch mode 종료");
+            boolean hasPendingMessages = false;
+            for (TopicPartition tp : topicPartitions) {
+                long endOffset = endOffsets.getOrDefault(tp, 0L);
+                long committedOffset = committedOffsets.get(tp).offset();
+                if (committedOffset < endOffset) {
+                    hasPendingMessages = true;
+                    break;
+                }
+            }
+
+            // 4. 배치 연장 여부 결정
+            if (hasPendingMessages) {
+                logger.info("Batch mode 연장");
+                scheduler.schedule(this::checkRemainingRecords, BATCH_DELAY, TimeUnit.SECONDS);
+            } else {
+                logger.info("Batch mode 종료");
                 isBatchModeActive = false;
                 batchFrequencyCounter = 0;
             }
         }
     }
-    @KafkaListener(topics = "${spring.kafka-var.topic.attendance}", groupId = "${spring.kafka-var.group-id.attendance}",  containerFactory = "attendanceBatchKafkaListenerContainerFactory")
+
+    private Integer attendanceReqAccumSize = 0;
+    @KafkaListener(topics = "attendance-topic", groupId = "${spring.kafka.consumer.group-id}",  containerFactory = "attendanceBatchKafkaListenerContainerFactory")
     public void createBatchAttendances(List<AttendanceReqDto> attendanceReqDtos, Acknowledgment acknowledgment) {
 
         try {
-            System.out.println("listen to batch insert:" + attendanceReqDtos.size());
+            logger.info("listen to batch insert: {}", attendanceReqDtos.size());
+            attendanceReqAccumSize += attendanceReqDtos.size();
+            logger.info("batch accum size : {}", attendanceReqAccumSize);
 
             List<MapSqlParameterSource> batchParams = new ArrayList<>();
 
@@ -170,7 +193,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             acknowledgment.acknowledge();
         }
         catch (Exception e){
-            System.out.println("kafka 에러입니다" + e);
+            logger.warn("Kafka 에러입니다, message : {}", e);
         }
     }
 

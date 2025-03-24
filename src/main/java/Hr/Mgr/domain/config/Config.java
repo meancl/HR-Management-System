@@ -19,6 +19,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,10 +29,27 @@ import java.util.Map;
 @EnableKafka
 public class Config {
 
-    @Value("${spring.kafka-var.group-id.attendance}")
+    @Value("${spring.kafka.consumer.group-id}")
     private String attendanceGroupId;
-    @Value("${spring.kafka-var.server}")
+    @Value("${spring.kafka.bootstrap-servers}")
     private String kafkaServer;
+    @Value("${spring.kafka.consumer.auto-offset-reset}")
+    private String resetConfig;
+    @Value("${spring.kafka.consumer.max-poll-records}")
+    private Integer max_poll_records;
+    @Value("${spring.kafka.listener.idle-between-polls}")
+    private Long idle_between_polls;
+    @Value("${spring.kafka.listener.poll-timeout}")
+    private Long poll_timeout;
+    @Value("${spring.redis.host}")
+    private String redisHost;
+    @Value("${spring.redis.port}")
+    private Integer redisPort;
+
+    @Bean
+    public RedisConnectionFactory redisConnectionFactory() {
+        return new LettuceConnectionFactory(redisHost, redisPort);
+    }
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
@@ -65,9 +83,9 @@ public class Config {
         config.put(ConsumerConfig.GROUP_ID_CONFIG, attendanceGroupId);
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, resetConfig);
         config.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);
+        config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, max_poll_records);
 //        config.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);
 //        config.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 60000);
 
@@ -84,10 +102,8 @@ public class Config {
         factory.setConsumerFactory(attendanceBatchConsumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
         factory.setBatchListener(true);
-
-        factory.getContainerProperties().setIdleBetweenPolls(2000); // 폴링 후 2초 대기 후 다시 poll 실행
-        factory.getContainerProperties().setPollTimeout(2000); // 메시지가 없으면 최대 2초 동안 대기
-//        factory.getContainerProperties().setIdleBetweenPolls(60000);
+        factory.getContainerProperties().setIdleBetweenPolls(idle_between_polls); // 폴링 후 2초 대기 후 다시 poll 실행
+        factory.getContainerProperties().setPollTimeout(poll_timeout); // 메시지가 없으면 최대 2초 동안 대기
 
         return factory;
     }

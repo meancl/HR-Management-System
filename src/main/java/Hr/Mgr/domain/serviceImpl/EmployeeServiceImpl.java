@@ -106,6 +106,11 @@ public class EmployeeServiceImpl implements EmployeeService {
 //                .filter(employee-> employee.getEmployeeStatus() != EmployeeStatus.TERMINATED)
                 .map(EmployeeResDto::new).toList();
     }
+    @Override
+    @Transactional(readOnly = true)
+    public List<Employee> findAllEmployeeEntities() {
+        return employeeRepository.findAllEmployeesWithDepartment();
+    }
 
     @Override
     public void deleteEmployee(Long id) {

@@ -15,6 +15,7 @@ public interface EmployeeService {
     EmployeeResDto findEmployeeDtoById(Long id);
     Employee findEmployeeEntityById(Long id);
     List<EmployeeResDto> findAllEmployeeDtos();
+    List<Employee> findAllEmployeeEntities();
     Page<EmployeeResDto> findAllEmployeeDtos(Pageable pageable);
     void deleteEmployee(Long id);
     EmployeeResDto updateDepartment(Long employeeId, Long departmentId);

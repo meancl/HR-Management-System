@@ -85,7 +85,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional(readOnly = true)
     public Employee findEmployeeEntityById(Long employeeId) {
-        return employeeRepository.findById(employeeId)
+        return employeeRepository.findWithDepartmentById(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException("해당 ID의 직원을 찾을 수 없습니다: " + employeeId));
     }
 

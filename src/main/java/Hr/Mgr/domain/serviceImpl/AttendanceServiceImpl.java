@@ -17,6 +17,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -224,10 +226,11 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AttendanceResDto> findAttendanceDtosByEmployeeId(Long employeeId) {
-        return attendanceRepository.findAllByEmployeeId(employeeId)
-                .stream().map(AttendanceResDto::new).toList();
+    public Page<AttendanceResDto> findAttendanceDtosByYearAndMonths(Integer year, Integer startMonth, Integer endMonth, Pageable pageable) {
+        return attendanceRepository.findByYearAndMonths(year, startMonth, endMonth, pageable)
+                .map(AttendanceResDto::new);
     }
+
 
     @Override
     public AttendanceResDto updateAttendance(Long attendanceId, AttendanceReqDto dto) {
@@ -244,9 +247,24 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     public void deleteAttendance(Long attendanceId) {
 
-        checkRemainingRecords();
-//        Attendance attendance = attendanceRepository.findById(attendanceId)
-//                .orElseThrow(() -> new IllegalArgumentException("Attendance not found"));
-//        attendanceRepository.delete(attendance);
+        // checkRemainingRecords();
+        Attendance attendance = attendanceRepository.findById(attendanceId)
+                .orElseThrow(() -> new IllegalArgumentException("Attendance not found"));
+        attendanceRepository.delete(attendance);
+    }
+
+    @Override
+    public int getMinAttendanceYear() {
+        return Optional.ofNullable(attendanceRepository.findMinYear()).orElse(0);
+    }
+
+    @Override
+    public int getMaxAttendanceYear() {
+        return Optional.ofNullable(attendanceRepository.findMaxYear()).orElse(0);
+    }
+
+    @Override
+    public int getMaxAttendanceMonth(int year) {
+        return Optional.ofNullable(attendanceRepository.findMaxMonth(year)).orElse(0);
     }
 }

@@ -81,11 +81,6 @@ class AttendanceServiceImplTest {
                 .usingRecursiveComparison().isEqualTo(attendance);
     }
 
-    @Test
-    void getAttendancesByEmployee() {
-        List<AttendanceResDto> attendancesByEmployee = attendanceService.findAttendanceDtosByEmployeeId(employeeId);
-        assertThat(attendancesByEmployee.size()).isEqualTo(1);
-    }
 
     @Test
     void updateAttendance() {

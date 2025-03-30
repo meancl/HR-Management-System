@@ -16,6 +16,11 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     Optional<Employee> findByEmail(String email);
 
     @Query("SELECT emp FROM Employee emp " +
+            "LEFT JOIN FETCH emp.department " +
+            "WHERE emp.id = :employeeId")
+    Optional<Employee> findWithDepartmentById(@Param("employeeId") Long id);
+
+    @Query("SELECT emp FROM Employee emp " +
             "JOIN FETCH emp.department")
     List<Employee> findAllEmployeesWithDepartment();
 }

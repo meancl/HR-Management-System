@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
@@ -25,6 +26,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,7 +57,7 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
         if(minAttendanceYear == 0 || maxAttendanceYear == 0) // 데이터 없을떄
             return;
 
-        int maxAttendanceMonth =  3; // attendanceService.getMaxAttendanceMonth(maxAttendanceYear);
+        int maxAttendanceMonth =  12; // attendanceService.getMaxAttendanceMonth(maxAttendanceYear);
 
         int [][] quarters = {
                 {1, 3},
@@ -60,8 +65,9 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
                 {7, 9},
                 {10, 12}
         };
-        Map<StatKey, Map<Long, EmployeeQuarterlyStatAccumulator>> accumulators = new HashMap<>();
-
+        Map<StatKey, Map<Long, EmployeeQuarterlyStatAccumulator>> accumulators = new ConcurrentHashMap<>();
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        List<Future<Void>> futures = new ArrayList<>();
         // 년 단위
         for (int curYear = minAttendanceYear; curYear <= maxAttendanceYear; curYear++){
             for (int[] quarter : quarters) {
@@ -69,9 +75,7 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
                 int sMonth = quarter[0];
                 int eMonth = quarter[1];
 
-                int page = 0;
-                int size = 5000;
-                Page<AttendanceResDto> pageResult;
+
 
                 if( curYear == maxAttendanceYear ){
                     if(( sMonth <= maxAttendanceMonth && eMonth >= maxAttendanceMonth))
@@ -85,21 +89,37 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
                 Map<Long, EmployeeQuarterlyStatAccumulator> empMap = new HashMap<>();
                 accumulators.put(statKey, empMap);
 
-                do {
-                    Pageable pageable = PageRequest.of(page, size);
-                    pageResult = attendanceService.findAttendanceDtosByYearAndMonths(curYear, sMonth, eMonth, pageable);
-                    accumulatePageData(pageResult.getContent(), empMap, curYear, quarterIndex);
-                    page++;
+                final int finalYear = curYear;
+                final int finalQuarterIndex = quarterIndex;
+                final int finalSMonth = sMonth;
+                final int finalEMonth = eMonth;
 
-                }while( page <= 4 );// pageResult.hasNext());
+                Future<Void> future = executor.submit(() -> {
+                    System.out.println(statKey + "작업 시작");
+                    int page = 0;
+                    int size = 5000;
+                    Page<AttendanceResDto> pageResult;
+                    do {
+                        Pageable pageable = PageRequest.of(page, size);
+                        pageResult = attendanceService.findAttendanceDtosByYearAndMonths(finalYear, finalSMonth, finalEMonth, pageable);
+                        accumulatePageData(pageResult.getContent(), empMap, finalYear, finalQuarterIndex);
+                        page++;
 
-                finalizeAndSave(accumulators);
+                    }while( page <= 1 );// pageResult.hasNext());
+
+                    System.out.println(statKey + "삽입 시작");
+                    finalizeAndSave(accumulators.get(statKey));
+                    System.out.println(statKey + "삽입 끝");
+                    accumulators.remove(statKey);
+                    return null;
+                });
+
             }
         }
     }
-    public void finalizeAndSave(Map<StatKey, Map<Long, EmployeeQuarterlyStatAccumulator>> accumulators) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void finalizeAndSave(Map<Long, EmployeeQuarterlyStatAccumulator> accumulators) {
         List<QuarterlyAttendanceStatistics> results = accumulators.values().stream()
-                .flatMap(empMap -> empMap.values().stream())
                 .map(EmployeeQuarterlyStatAccumulator::toFinalStatistics)
                 .toList();
 

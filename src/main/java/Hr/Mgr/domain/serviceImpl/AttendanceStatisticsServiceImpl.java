@@ -1,5 +1,6 @@
 package Hr.Mgr.domain.serviceImpl;
 
+import Hr.Mgr.domain.dto.AttendanceReqDto;
 import Hr.Mgr.domain.dto.AttendanceResDto;
 import Hr.Mgr.domain.entity.Employee;
 import Hr.Mgr.domain.entity.QuarterlyAttendanceStatistics;
@@ -11,17 +12,34 @@ import Hr.Mgr.domain.service.AttendanceService;
 import Hr.Mgr.domain.service.AttendanceStatisticsService;
 import Hr.Mgr.domain.service.EmployeeService;
 import Hr.Mgr.domain.statistics.EmployeeQuarterlyStatAccumulator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.xerial.snappy.SnappyOutputStream;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
-import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,13 +51,29 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
+// Qualifier 사용을 위해 lombok @RequiredArgsConstructor 기능을 off
 public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsService {
 
     private final AttendanceService attendanceService;
     private final EmployeeService employeeService;
     private final QuarterlyAttendanceStatisticsRepository statsRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    private static final Logger logger = LoggerFactory.getLogger(AttendanceStatisticsService.class);
+    @Value("${custom.kafka.topic.attendance-statistics}")
+    private String attendanceStatisticsTopic;
     private Map<String, DataInitializer.DepartmentPolicy> policies = new HashMap<>();
+
+    public AttendanceStatisticsServiceImpl(AttendanceService attendanceService, EmployeeService employeeService, QuarterlyAttendanceStatisticsRepository statsRepository, @Qualifier("compressedKafkaTemplate") KafkaTemplate<String, Object> kafkaTemplate, NamedParameterJdbcTemplate jdbcTemplate) {
+        this.attendanceService = attendanceService;
+        this.employeeService = employeeService;
+        this.statsRepository = statsRepository;
+        this.kafkaTemplate = kafkaTemplate;
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
     private record StatKey(int year, int quarter) {}
 
     @PostConstruct
@@ -50,6 +84,7 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
     @Override
     @Transactional
     public void calculateAndInsertStatistics() {
+
 
         int minAttendanceYear = 2010; //attendanceService.getMinAttendanceYear();
         int maxAttendanceYear = 2010; // attendanceService.getMaxAttendanceYear();
@@ -95,7 +130,7 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
                 final int finalEMonth = eMonth;
 
                 Future<Void> future = executor.submit(() -> {
-                    System.out.println(statKey + "작업 시작");
+                    logger.info(statKey + "작업 시작");
                     int page = 0;
                     int size = 5000;
                     Page<AttendanceResDto> pageResult;
@@ -107,15 +142,36 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
 
                     }while( page <= 1 );// pageResult.hasNext());
 
-                    System.out.println(statKey + "삽입 시작");
+                    logger.info(statKey + "삽입 시작");
                     finalizeAndSave(accumulators.get(statKey));
-                    System.out.println(statKey + "삽입 끝");
+                    logger.info(statKey + "삽입 끝");
                     accumulators.remove(statKey);
                     return null;
                 });
 
             }
         }
+        //
+//         snappy 압축률 계산
+//        ObjectMapper objectMapper = new ObjectMapper();
+//        String json = null; // data = List<MyClass> 등
+//        try {
+//            byte[] raw = objectMapper.writeValueAsBytes(list);
+//            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//            OutputStream out = new SnappyOutputStream(baos);
+//            out.write(raw);
+//            out.close();
+//            byte[] byteArray = baos.toByteArray();
+//
+//            System.out.println("원본 크기: " + raw.length);
+//            System.out.println("Snappy 압축 크기: " + byteArray.length);
+//            System.out.println("압축률: " + ((double) byteArray.length / raw.length));
+//
+//        } catch (JsonProcessingException e) {
+//            throw new RuntimeException(e);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void finalizeAndSave(Map<Long, EmployeeQuarterlyStatAccumulator> accumulators) {
@@ -123,9 +179,64 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
                 .map(EmployeeQuarterlyStatAccumulator::toFinalStatistics)
                 .toList();
 
-        statsRepository.saveAll(results);
+        kafkaTemplate.send(attendanceStatisticsTopic, results);
+
+//        statsRepository.saveAll(results);
+    }
+    @KafkaListener(topics = "${custom.kafka.topic.attendance-statistics}", groupId = "${custom.kafka.group-id.attendance-statistics}",  containerFactory = "attendanceStatisticsKafkaListenerContainerFactory")
+    public void createBatchAttendanceStatistics(List<QuarterlyAttendanceStatistics> attendanceStatisticsReqDtos) {
+
+        try {
+            List<MapSqlParameterSource> batchParams = new ArrayList<>();
+
+            for (int batchedSize = 0; batchedSize < attendanceStatisticsReqDtos.size(); batchedSize++) {
+                QuarterlyAttendanceStatistics attendanceReqDto = attendanceStatisticsReqDtos.get(batchedSize);
+                String json = objectMapper.writeValueAsString(attendanceReqDto.getWeeklyWorkMinutes());
+                LocalDateTime now = LocalDateTime.now();
+                batchParams.add(new MapSqlParameterSource()
+                        .addValue("avg_end_time", attendanceReqDto.getAvgEndTime())
+                        .addValue("avg_overtime_minutes", attendanceReqDto.getAvgOvertimeMinutes())
+                        .addValue("avg_start_time", attendanceReqDto.getAvgStartTime())
+                        .addValue("avg_work_minutes", attendanceReqDto.getAvgWorkMinutes())
+                        .addValue("department", attendanceReqDto.getDepartment())
+                        .addValue("employee_id", attendanceReqDto.getEmployeeId())
+                        .addValue("holiday_work_ratio", attendanceReqDto.getHolidayWorkRatio())
+                        .addValue("late_count", attendanceReqDto.getLateCount())
+                        .addValue("present_days", attendanceReqDto.getPresentDays())
+                        .addValue("quarter", attendanceReqDto.getQuarter())
+                        .addValue("present_days", attendanceReqDto.getPresentDays())
+                        .addValue("weekly_work_minutes", json)
+                        .addValue("year", attendanceReqDto.getYear())
+                        .addValue("created_at", now)
+                        .addValue("updated_at", now));
+
+                if(batchedSize != 0 && batchedSize % 2000 == 0){
+                    batchInsertAttendancesStatistics(batchParams);
+                    batchParams.clear();
+                }
+            }
+            if(!batchParams.isEmpty())
+                batchInsertAttendancesStatistics(batchParams);
+        }
+        catch (Exception e){
+            logger.warn("Kafka 에러입니다, message : {}", e);
+        }
     }
 
+    private void batchInsertAttendancesStatistics(List<MapSqlParameterSource> batchParams) {
+
+        String sql = "INSERT INTO quarterly_attendance_statistics ("
+                + "avg_end_time, avg_overtime_minutes, avg_start_time, avg_work_minutes, "
+                + "department, employee_id, holiday_work_ratio, late_count, "
+                + "present_days, quarter, weekly_work_minutes, year, created_at, updated_at"
+                + ") VALUES ("
+                + ":avg_end_time, :avg_overtime_minutes, :avg_start_time, :avg_work_minutes, "
+                + ":department, :employee_id, :holiday_work_ratio, :late_count, "
+                + ":present_days, :quarter, :weekly_work_minutes, :year, :created_at, :updated_at"
+                + ")";
+
+        jdbcTemplate.batchUpdate(sql, batchParams.toArray(new MapSqlParameterSource[0]));
+    }
 
     public void accumulatePageData(List<AttendanceResDto> pageData,
                                    Map<Long, EmployeeQuarterlyStatAccumulator> employeeMap,
@@ -154,8 +265,7 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
             }
         }
         catch (Exception e){
-            System.out.println(e);
-
+            logger.error(e.toString());
         }
     }
 

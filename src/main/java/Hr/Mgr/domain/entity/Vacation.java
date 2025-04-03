@@ -44,6 +44,7 @@ public class Vacation {
         this.totalDays = (int) (endDate.toEpochDay() - startDate.toEpochDay()) + 1;
     }
 
+    public Vacation(){}
     public Vacation(Employee employee, VacationType vacationType, LocalDate startDate, LocalDate endDate){
         this.employee = employee;
         this.type = vacationType;

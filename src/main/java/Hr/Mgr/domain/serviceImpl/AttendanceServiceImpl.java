@@ -45,7 +45,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final EmployeeService employeeService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final KafkaTemplate<String, AttendanceReqDto> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private static final Logger logger = LoggerFactory.getLogger(AttendanceService.class);
     private Boolean isBatchModeActive = false;
 
@@ -53,8 +53,9 @@ public class AttendanceServiceImpl implements AttendanceService {
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
 //    private final String attendanceKey = "attendance-key";
-    private String attendanceTopic = "attendance-topic";
-    @Value("${spring.kafka.consumer.group-id}")
+    @Value("${custom.kafka.topic.attendance}")
+    private String attendanceTopic;
+    @Value("${custom.kafka.group-id.attendance}")
     private String attendanceGroupId;
     @Value("${spring.kafka.bootstrap-servers}")
     private String kafkaServer;
@@ -172,7 +173,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     private Integer attendanceReqAccumSize = 0;
-    @KafkaListener(topics = "attendance-topic", groupId = "${spring.kafka.consumer.group-id}",  containerFactory = "attendanceBatchKafkaListenerContainerFactory")
+    @KafkaListener(topics = "${custom.kafka.topic.attendance}", groupId = "${custom.kafka.group-id.attendance}",  containerFactory = "attendanceBatchKafkaListenerContainerFactory")
     public void createBatchAttendances(List<AttendanceReqDto> attendanceReqDtos, Acknowledgment acknowledgment) {
 
         try {

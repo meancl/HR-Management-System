@@ -49,10 +49,12 @@ custom:
   kafka:
     topic:
       attendance: attendance-topic
-      attendance-statistics: attendance-statistics-topic
+      insert-attendance-statistics: insert-attendance-statistics-topic
+      calculate-attendance-statistics: attendance-statistics-topic
     group-id:
       attendance: attendance-group
-      attendance-statistics: attendance-statistics-group
+      insert-attendance-statistics: insert-attendance-statistics-group2
+      calculate-attendance-statistics: calculate-attendance-statistics-group2
       generic: generic-group
 
   output:
@@ -62,7 +64,7 @@ custom:
 logging:
   level:
     org.hibernate.sql: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+    org.hibernate.orm.jdbc.bind: INFO
     org.apache.kafka.clients.consumer.ConsumerConfig: WARN
     org.apache.kafka: WARN #INFO
 #    org.springframework.kafka: DEBUG

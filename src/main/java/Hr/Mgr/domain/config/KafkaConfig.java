@@ -16,6 +16,7 @@ import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +28,10 @@ public class KafkaConfig {
     private String resetConfig;
     @Value("${custom.kafka.group-id.attendance}")
     private String attendanceGroupId;
-    @Value("${custom.kafka.group-id.attendance-statistics}")
-    private String attendanceStatisticsGroupId;
+    @Value("${custom.kafka.group-id.insert-attendance-statistics}")
+    private String insertAttendanceStatisticsGroupId;
+    @Value("${custom.kafka.group-id.calculate-attendance-statistics}")
+    private String calculateAttendanceStatisticsGroupId;
     @Value("${spring.kafka.bootstrap-servers}")
     private String kafkaServer;
     @Value("${spring.kafka.consumer.max-poll-records}")
@@ -46,6 +49,9 @@ public class KafkaConfig {
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+
+        // round robin
+        config.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, "org.apache.kafka.clients.producer.RoundRobinPartitioner");
         return new DefaultKafkaProducerFactory<>(config);
     }
 
@@ -101,10 +107,10 @@ public class KafkaConfig {
 
     // list<QuarterlyAttendanceStatistics> consumer
     @Bean
-    public ConsumerFactory<String, List<QuarterlyAttendanceStatistics>> attendanceStatisticsConsumerFactory() {
+    public ConsumerFactory<String, List<QuarterlyAttendanceStatistics>> insertAttendanceStatisticsConsumerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, attendanceStatisticsGroupId);
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, insertAttendanceStatisticsGroupId);
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SnappyValueDeserializer.class);
 //        config.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 5 * 1024 * 1024); // 5MB
@@ -113,11 +119,33 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, List<QuarterlyAttendanceStatistics>> attendanceStatisticsKafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, List<QuarterlyAttendanceStatistics>> insertAttendanceStatisticsKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, List<QuarterlyAttendanceStatistics>> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(attendanceStatisticsConsumerFactory());
+        factory.setConsumerFactory(insertAttendanceStatisticsConsumerFactory());
         return factory;
     }
+
+    // Record consumer
+    @Bean
+    public ConsumerFactory<String, Record> calculateAttendanceStatisticsConsumerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, calculateAttendanceStatisticsGroupId);
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, IntRangeDeserializer.class);
+//        config.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, "org.apache.kafka.clients.consumer.RoundRobinAssignor");
+
+        return new DefaultKafkaConsumerFactory<>(config);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, Record> calculateAttendanceStatisticsKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Record> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(calculateAttendanceStatisticsConsumerFactory());
+        return factory;
+    }
+
 
 }

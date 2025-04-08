@@ -1,25 +1,18 @@
 package Hr.Mgr.domain.serviceImpl;
 
-import Hr.Mgr.domain.dto.AttendanceReqDto;
 import Hr.Mgr.domain.dto.AttendanceResDto;
 import Hr.Mgr.domain.entity.Employee;
 import Hr.Mgr.domain.entity.QuarterlyAttendanceStatistics;
-import Hr.Mgr.domain.enums.AttendanceStatus;
-import Hr.Mgr.domain.enums.VacationType;
 import Hr.Mgr.domain.init.DataInitializer;
 import Hr.Mgr.domain.repository.QuarterlyAttendanceStatisticsRepository;
 import Hr.Mgr.domain.service.AttendanceService;
 import Hr.Mgr.domain.service.AttendanceStatisticsService;
 import Hr.Mgr.domain.service.EmployeeService;
 import Hr.Mgr.domain.statistics.EmployeeQuarterlyStatAccumulator;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -29,16 +22,10 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.xerial.snappy.SnappyOutputStream;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,25 +44,32 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
     private final AttendanceService attendanceService;
     private final EmployeeService employeeService;
     private final QuarterlyAttendanceStatisticsRepository statsRepository;
+    private final KafkaTemplate<String, Object> compressedKafkaTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Logger logger = LoggerFactory.getLogger(AttendanceStatisticsService.class);
-    @Value("${custom.kafka.topic.attendance-statistics}")
-    private String attendanceStatisticsTopic;
+    @Value("${custom.kafka.topic.insert-attendance-statistics}")
+    private String insertAttendanceStatisticsTopic;
+    @Value("${custom.kafka.topic.calculate-attendance-statistics}")
+    private String calculateAttendanceStatisticsTopic;
+
+    @Value("${server-name}")
+    private String serverName;
     private Map<String, DataInitializer.DepartmentPolicy> policies = new HashMap<>();
 
-    public AttendanceStatisticsServiceImpl(AttendanceService attendanceService, EmployeeService employeeService, QuarterlyAttendanceStatisticsRepository statsRepository, @Qualifier("compressedKafkaTemplate") KafkaTemplate<String, Object> kafkaTemplate, NamedParameterJdbcTemplate jdbcTemplate) {
+    public AttendanceStatisticsServiceImpl(AttendanceService attendanceService, EmployeeService employeeService, QuarterlyAttendanceStatisticsRepository statsRepository, @Qualifier("compressedKafkaTemplate") KafkaTemplate<String, Object> compressedKafkaTemplate, KafkaTemplate<String, Object> kafkaTemplate, NamedParameterJdbcTemplate jdbcTemplate) {
         this.attendanceService = attendanceService;
         this.employeeService = employeeService;
         this.statsRepository = statsRepository;
+        this.compressedKafkaTemplate = compressedKafkaTemplate;
         this.kafkaTemplate = kafkaTemplate;
         this.jdbcTemplate = jdbcTemplate;
     }
 
     private record StatKey(int year, int quarter) {}
-
+    public record IntRange(int start, int end) {}
     @PostConstruct
     private void init() {
         writeDepartmentPolicies();
@@ -83,16 +77,40 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
 
     @Override
     @Transactional
-    public void calculateAndInsertStatistics() {
-
-
-        int minAttendanceYear = 2010; //attendanceService.getMinAttendanceYear();
-        int maxAttendanceYear = 2010; // attendanceService.getMaxAttendanceYear();
+    public void createAttendanceStatistics() {
+        int minAttendanceYear = 2003; //attendanceService.getMinAttendanceYear();
+        int maxAttendanceYear = 2012; // attendanceService.getMaxAttendanceYear();
 
         if(minAttendanceYear == 0 || maxAttendanceYear == 0) // 데이터 없을떄
-            return;
+            throw new RuntimeException("there is no attendance Year Data");
 
-        int maxAttendanceMonth =  12; // attendanceService.getMaxAttendanceMonth(maxAttendanceYear);
+        int rangeCount = 6;
+        int totalYears = maxAttendanceYear - minAttendanceYear + 1;
+        int unit = totalYears / rangeCount;
+        int remainder = totalYears % rangeCount;
+        int start = minAttendanceYear;
+
+        for (int i = 0; i < rangeCount; i++) {
+            int end = start + unit - 1;
+            if (remainder > 0) {
+                end += 1;
+                remainder--;
+            }
+            logger.info("{} : {} and {} send",serverName, start , end);
+            kafkaTemplate.send(calculateAttendanceStatisticsTopic, null, new IntRange(start, end));
+
+            start = end + 1;
+            if (start > maxAttendanceYear) break;
+        }
+    }
+
+    @KafkaListener(topics = "${custom.kafka.topic.calculate-attendance-statistics}", groupId = "${custom.kafka.group-id.calculate-attendance-statistics}",  containerFactory = "calculateAttendanceStatisticsKafkaListenerContainerFactory", concurrency = "3")
+    public void calculateAttendanceStatistics(IntRange yearRange) {
+        logger.info("{} :  calculate Attendance Statistics between {} and {}", serverName, yearRange.start, yearRange.end);
+        int minAttendanceYear = yearRange.start;
+        int maxAttendanceYear = yearRange.end;
+
+        int maxAttendanceMonth =  attendanceService.getMaxAttendanceMonth(maxAttendanceYear);
 
         int [][] quarters = {
                 {1, 3},
@@ -112,7 +130,7 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
 
 
 
-                if( curYear == maxAttendanceYear ){
+                if( curYear == maxAttendanceYear){
                     if(( sMonth <= maxAttendanceMonth && eMonth >= maxAttendanceMonth))
                         eMonth = maxAttendanceMonth;
                     else if(sMonth > maxAttendanceMonth)
@@ -173,17 +191,20 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
 //            throw new RuntimeException(e);
 //        }
     }
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+
+
     public void finalizeAndSave(Map<Long, EmployeeQuarterlyStatAccumulator> accumulators) {
         List<QuarterlyAttendanceStatistics> results = accumulators.values().stream()
                 .map(EmployeeQuarterlyStatAccumulator::toFinalStatistics)
                 .toList();
 
-        kafkaTemplate.send(attendanceStatisticsTopic, results);
+        compressedKafkaTemplate.send(insertAttendanceStatisticsTopic, results);
 
 //        statsRepository.saveAll(results);
     }
-    @KafkaListener(topics = "${custom.kafka.topic.attendance-statistics}", groupId = "${custom.kafka.group-id.attendance-statistics}",  containerFactory = "attendanceStatisticsKafkaListenerContainerFactory")
+
+    @Transactional
+    @KafkaListener(topics = "${custom.kafka.topic.insert-attendance-statistics}", groupId = "${custom.kafka.group-id.insert-attendance-statistics}",  containerFactory = "insertAttendanceStatisticsKafkaListenerContainerFactory")
     public void createBatchAttendanceStatistics(List<QuarterlyAttendanceStatistics> attendanceStatisticsReqDtos) {
 
         try {

@@ -9,12 +9,12 @@ server:
     connection-timeout: 60s # Keep-Alive 연결 유지 시간 증가
 
 spring:
-
   profiles:
     active: dev
 
   application:
     name: Mgr
+
 
   jpa:
     hibernate:

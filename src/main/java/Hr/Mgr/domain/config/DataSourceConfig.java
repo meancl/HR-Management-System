@@ -1,12 +1,13 @@
 package Hr.Mgr.domain.config;
 
+import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
-
+import com.zaxxer.hikari.HikariConfig;
 import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,47 +40,57 @@ public class DataSourceConfig {
 
     @Bean(name = "masterWriteDataSource")
     public DataSource masterWriteDataSource() {
-        return DataSourceBuilder.create()
-                .url("jdbc:mysql://localhost:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul")
-                .username("root")
-                .password("root")
-                .build();
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:mysql://localhost:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul");
+        config.setUsername("root");
+        config.setPassword("root");
+        config.setMaximumPoolSize(20);;
+        config.setMinimumIdle(5);
+        return new HikariDataSource(config);
     }
     @Bean(name = "masterReadDataSource")
     public DataSource masterReadDataSource() {
-        return DataSourceBuilder.create()
-                .url("jdbc:mysql://localhost:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul")
-                .username("root")
-                .password("root")
-                .build();
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:mysql://localhost:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul");
+        config.setUsername("root");
+        config.setPassword("root");
+        config.setMaximumPoolSize(20);;
+        config.setMinimumIdle(5);
+        return new HikariDataSource(config);
     }
     @Bean(name = "replicaWriteDataSource")
     public DataSource replicaWriteDataSource() {
-        return DataSourceBuilder.create()
-                .url("jdbc:mysql://mjhr.duckdns.org:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul")
-                .username("repl")
-                .password("repl")
-                .build();
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:mysql://mjhr.duckdns.org:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul");
+        config.setUsername("root");
+        config.setPassword("root");
+        config.setMaximumPoolSize(20);;
+        config.setMinimumIdle(5);
+        return new HikariDataSource(config);
     }
 
 
 
     @Bean(name = "replicaReadDataSource")
     public DataSource replicaReadDataSource() {
-        return DataSourceBuilder.create()
-                .url("jdbc:mysql://localhost:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul")
-                .username("root")
-                .password("root")
-                .build();
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:mysql://localhost:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul");
+        config.setUsername("root");
+        config.setPassword("root");
+        config.setMaximumPoolSize(20);;
+        config.setMinimumIdle(5);
+        return new HikariDataSource(config);
     }
 
     @Bean(name = "defaultDataSource")
     public DataSource defaultDataSource() {
-        return DataSourceBuilder.create()
-                .url("jdbc:mysql://mjhr.duckdns.org:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul")
-                .username("root")
-                .password("root")
-                .build();
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:mysql://mjhr.duckdns.org:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul");
+        config.setUsername("root");
+        config.setPassword("root");
+        config.setMaximumPoolSize(20);;
+        config.setMinimumIdle(5);
+        return new HikariDataSource(config);
     }
 
 

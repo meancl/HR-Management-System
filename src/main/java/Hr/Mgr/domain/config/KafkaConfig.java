@@ -50,8 +50,6 @@ public class KafkaConfig {
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
 
-        // round robin
-        config.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, "org.apache.kafka.clients.producer.RoundRobinPartitioner");
         return new DefaultKafkaProducerFactory<>(config);
     }
 
@@ -126,26 +124,7 @@ public class KafkaConfig {
         return factory;
     }
 
-    // Record consumer
-    @Bean
-    public ConsumerFactory<String, Record> calculateAttendanceStatisticsConsumerFactory() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, calculateAttendanceStatisticsGroupId);
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, IntRangeDeserializer.class);
-//        config.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, "org.apache.kafka.clients.consumer.RoundRobinAssignor");
 
-        return new DefaultKafkaConsumerFactory<>(config);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Record> calculateAttendanceStatisticsKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, Record> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(calculateAttendanceStatisticsConsumerFactory());
-        return factory;
-    }
 
 
 }

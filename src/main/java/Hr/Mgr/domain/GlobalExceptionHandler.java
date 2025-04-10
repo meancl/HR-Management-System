@@ -16,7 +16,7 @@ public class GlobalExceptionHandler {
     // 커스텀 예외 예시 (필요 시 추가)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
-        log.error("RuntimeException 발생: {}", ex.getMessage(), ex);
+        log.warn("RuntimeException 발생: {}", ex.getMessage());
         return buildResponse(HttpStatus.BAD_REQUEST, "잘못된 요청입니다.", ex);
     }
 

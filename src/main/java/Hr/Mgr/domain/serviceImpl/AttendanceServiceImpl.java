@@ -43,7 +43,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final EmployeeService employeeService;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private static final Logger logger = LoggerFactory.getLogger(AttendanceService.class);

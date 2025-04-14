@@ -96,8 +96,8 @@ public class KafkaConfig {
         factory.setConsumerFactory(attendanceBatchConsumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
         factory.setBatchListener(true);
-        factory.getContainerProperties().setIdleBetweenPolls(idle_between_polls); // 폴링 후 2초 대기 후 다시 poll 실행
-        factory.getContainerProperties().setPollTimeout(poll_timeout); // 메시지가 없으면 최대 2초 동안 대기
+        // factory.getContainerProperties().setIdleBetweenPolls(idle_between_polls); // 폴링 후 0.3초 대기 후 다시 poll 실행
+        factory.getContainerProperties().setPollTimeout(poll_timeout);
 
         return factory;
     }

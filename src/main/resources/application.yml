@@ -10,7 +10,7 @@ server:
 
 spring:
   profiles:
-    active: dev
+    active: a_server
 
   application:
     name: Mgr
@@ -42,7 +42,7 @@ spring:
       properties:
         spring.json.trusted.packages: "*"
     listener:
-      idle-between-polls: 2000  # 2초(2000ms) 대기
+      idle-between-polls: 0
       poll-timeout: 2000  # 최대 2초 동안 대기
 
 custom:

@@ -4,6 +4,7 @@ import Hr.Mgr.domain.dto.AttendanceReqDto;
 import Hr.Mgr.domain.dto.AttendanceResDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.util.List;
 
@@ -17,6 +18,7 @@ public interface AttendanceService {
     int getMinAttendanceYear();
     int getMaxAttendanceYear();
     int getMaxAttendanceMonth(int year);
+    void batchInsertAttendances(List<MapSqlParameterSource> batchParams);
 
 
 }

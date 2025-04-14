@@ -60,6 +60,8 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Value("${spring.kafka.bootstrap-servers}")
     private String kafkaServer;
 
+    @Value("${spring.profiles.active}")
+    private String currentServer;
 
     @Override
     public AttendanceResDto createAttendance(AttendanceReqDto dto) {
@@ -68,7 +70,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         String lockKey = ATTENDANCE_LOCK_KEY + dto.getEmployeeId();
         Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, "lock", Duration.ofSeconds(10));
         if (lockAcquired == null || !lockAcquired) {
-            return null; // 이미 락이 설정되어 있으면 생성 불가
+           //  return null; // 이미 락이 설정되어 있으면 생성 불가
         }
 
         // create Attendance
@@ -99,7 +101,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     private LocalDateTime batchInitTime;
     private final Integer MAX_ACCESS_COUNT = 3;
     private final Integer ACCESS_INTERVAL_SECONDS= 10;
-    private final Integer BATCH_DELAY = 10; // batch 작업 수행시간
+    private final Integer BATCH_DELAY = 60; // batch 작업 수행시간
 
     /*
     *  ACCESS_INTERVAL_SECONDS 시간 안에 MAX_ACCESS_COUNT 이상의 요청이 들어오면
@@ -172,37 +174,10 @@ public class AttendanceServiceImpl implements AttendanceService {
         }
     }
 
-    private Integer attendanceReqAccumSize = 0;
-    @KafkaListener(topics = "${custom.kafka.topic.attendance}", groupId = "${custom.kafka.group-id.attendance}",  containerFactory = "attendanceBatchKafkaListenerContainerFactory")
-    public void createBatchAttendances(List<AttendanceReqDto> attendanceReqDtos, Acknowledgment acknowledgment) {
-
-        try {
-            logger.info("listen to batch insert: {}", attendanceReqDtos.size());
-            attendanceReqAccumSize += attendanceReqDtos.size();
-            logger.info("batch accum size : {}", attendanceReqAccumSize);
-
-            List<MapSqlParameterSource> batchParams = new ArrayList<>();
-
-            for (AttendanceReqDto attendanceReqDto : attendanceReqDtos) {
-                batchParams.add(new MapSqlParameterSource()
-                        .addValue("employee_id", attendanceReqDto.getEmployeeId())
-                        .addValue("attendance_date", attendanceReqDto.getAttendanceDate())
-                        .addValue("check_in_time", attendanceReqDto.getCheckInTime())
-                        .addValue("check_out_time", attendanceReqDto.getCheckOutTime())
-                        .addValue("status", attendanceReqDto.getAttendanceStatus().toString()));
-            }
-
-            batchInsertAttendances(batchParams);
-            acknowledgment.acknowledge();
-        }
-        catch (Exception e){
-            logger.warn("Kafka 에러입니다, message : {}", e);
-        }
-    }
 
 
 
-    private void batchInsertAttendances(List<MapSqlParameterSource> batchParams) {
+    public void batchInsertAttendances(List<MapSqlParameterSource> batchParams) {
         // TODO. attendance로 변경
         String sql = """
                 INSERT INTO attendance (employee_id, attendance_date, check_in_time, check_out_time, status) 

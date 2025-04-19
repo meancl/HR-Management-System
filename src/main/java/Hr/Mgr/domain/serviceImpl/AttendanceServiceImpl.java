@@ -1,12 +1,16 @@
 package Hr.Mgr.domain.serviceImpl;
 
+import Hr.Mgr.domain.aspect.MeasureExecutionTime;
 import Hr.Mgr.domain.dto.AttendanceReqDto;
 import Hr.Mgr.domain.dto.AttendanceResDto;
 import Hr.Mgr.domain.entity.Attendance;
 import Hr.Mgr.domain.entity.Employee;
+import Hr.Mgr.domain.init.DataInitializer;
 import Hr.Mgr.domain.repository.AttendanceRepository;
 import Hr.Mgr.domain.service.AttendanceService;
+import Hr.Mgr.domain.service.AttendanceStatisticsService;
 import Hr.Mgr.domain.service.EmployeeService;
+import Hr.Mgr.domain.statistics.EmployeeQuarterlyStatAccumulator;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -26,6 +30,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
@@ -33,7 +38,9 @@ import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import static Hr.Mgr.domain.serviceImpl.AttendanceStatisticsServiceImpl.policies;
 import static java.util.Arrays.stream;
 
 @Service
@@ -202,9 +209,12 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<AttendanceResDto> findAttendanceDtosByYearAndMonths(Integer year, Integer startMonth, Integer endMonth, Pageable pageable) {
-        return attendanceRepository.findByYearAndMonths(year, startMonth, endMonth, pageable)
-                .map(AttendanceResDto::new);
+    @MeasureExecutionTime
+    public Page<Attendance> findAttendanceEntitiesByYearAndMonths(Integer year, Integer startMonth, Integer endMonth, Pageable pageable) {
+        LocalDate startDate = LocalDate.of(year, startMonth, 1);
+        LocalDate endDate = LocalDate.of(year, endMonth, 1).plusMonths(1);
+        Page<Attendance> byYearAndMonths = attendanceRepository.findByYearAndMonths(startDate, endDate, pageable);
+        return byYearAndMonths;
     }
 
 
@@ -230,17 +240,23 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
+    @MeasureExecutionTime
     public int getMinAttendanceYear() {
-        return Optional.ofNullable(attendanceRepository.findMinYear()).orElse(0);
+        return attendanceRepository.findMinDate().map(LocalDate::getYear).orElse(0);
     }
 
     @Override
+    @MeasureExecutionTime
     public int getMaxAttendanceYear() {
-        return Optional.ofNullable(attendanceRepository.findMaxYear()).orElse(0);
+        return attendanceRepository.findMaxDate().map(LocalDate::getYear).orElse(0);
     }
 
     @Override
+    @MeasureExecutionTime
     public int getMaxAttendanceMonth(int year) {
-        return Optional.ofNullable(attendanceRepository.findMaxMonth(year)).orElse(0);
+        LocalDate start = LocalDate.of(year, 1, 1);
+        LocalDate end = start.plusYears(1);
+        return attendanceRepository.findMaxMonthInYear(start, end).orElse(0);
     }
+
 }

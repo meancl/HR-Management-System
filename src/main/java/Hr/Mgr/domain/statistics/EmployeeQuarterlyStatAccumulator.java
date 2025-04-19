@@ -1,6 +1,7 @@
 package Hr.Mgr.domain.statistics;
 
 import Hr.Mgr.domain.dto.AttendanceResDto;
+import Hr.Mgr.domain.entity.Attendance;
 import Hr.Mgr.domain.entity.QuarterlyAttendanceStatistics;
 import Hr.Mgr.domain.enums.AttendanceStatus;
 import Hr.Mgr.domain.init.DataInitializer;
@@ -38,8 +39,8 @@ public class EmployeeQuarterlyStatAccumulator {
         this.quarter = quarter;
     }
 
-    public void accumulate(List<AttendanceResDto> data, DataInitializer.DepartmentPolicy policy) {
-        for (AttendanceResDto att : data) {
+    public void accumulate(List<Attendance> data, DataInitializer.DepartmentPolicy policy) {
+        for (Attendance att : data) {
             if (att.getStatus() == AttendanceStatus.HOLIDAY) continue;
 
             presentDays++;

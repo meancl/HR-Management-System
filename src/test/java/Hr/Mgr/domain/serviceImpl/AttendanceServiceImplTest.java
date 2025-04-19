@@ -39,28 +39,29 @@ class AttendanceServiceImplTest {
 
     @BeforeEach
     void beforeEach() {
-        EmployeeReqDto employeeReqDto = new EmployeeReqDto();
-        employeeReqDto.setName("민재");
-        employeeReqDto.setEmail("sbe03253@naver.com");
-        employeeReqDto.setPassword(bCryptPasswordEncoder.encode("passwd1234"));
-        employeeReqDto.setAge(30);
-
-        employeeId = employeeService.createEmployee(employeeReqDto);
-
-        AttendanceReqDto  attendanceReqDto = new AttendanceReqDto();
-        attendanceReqDto.setEmployeeId(employeeId);
-        attendanceReqDto.setAttendanceDate(LocalDate.of(2025, 1, 25));
-        attendanceReqDto.setCheckInTime(LocalTime.of(8, 58, 22));
-        attendanceReqDto.setCheckOutTime(LocalTime.of(18, 7, 12));
-        attendanceReqDto.setAttendanceStatus(AttendanceStatus.PRESENT);
-
-        attendance = attendanceService.createAttendance(attendanceReqDto);
+//        EmployeeReqDto employeeReqDto = new EmployeeReqDto();
+//        employeeReqDto.setName("민재");
+//        employeeReqDto.setEmail("sbe03253@naver.com");
+//        employeeReqDto.setPassword(bCryptPasswordEncoder.encode("passwd1234"));
+//        employeeReqDto.setAge(30);
+//
+//        employeeId = employeeService.createEmployee(employeeReqDto);
+//
+//        AttendanceReqDto  attendanceReqDto = new AttendanceReqDto();
+//        attendanceReqDto.setEmployeeId(employeeId);
+//        attendanceReqDto.setAttendanceDate(LocalDate.of(2025, 1, 25));
+//        attendanceReqDto.setCheckInTime(LocalTime.of(8, 58, 22));
+//        attendanceReqDto.setCheckOutTime(LocalTime.of(18, 7, 12));
+//        attendanceReqDto.setAttendanceStatus(AttendanceStatus.PRESENT);
+//
+//        attendance = attendanceService.createAttendance(attendanceReqDto);
     }
 
 
     @Test
     void hasRemainingRecordsTest(){
-        attendanceService.deleteAttendance(2L);
+        attendanceService.findAttendanceDtoById(2265073L);
+//        attendanceService.deleteAttendance(2L);
     }
 
     @Test

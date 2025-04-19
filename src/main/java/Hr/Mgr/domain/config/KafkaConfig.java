@@ -30,8 +30,6 @@ public class KafkaConfig {
     private String attendanceGroupId;
     @Value("${custom.kafka.group-id.insert-attendance-statistics}")
     private String insertAttendanceStatisticsGroupId;
-    @Value("${custom.kafka.group-id.calculate-attendance-statistics}")
-    private String calculateAttendanceStatisticsGroupId;
     @Value("${spring.kafka.bootstrap-servers}")
     private String kafkaServer;
     @Value("${spring.kafka.consumer.max-poll-records}")
@@ -64,7 +62,9 @@ public class KafkaConfig {
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, SnappyValueSerializer.class );
-//        config.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 5 * 1024 * 1024); // 5MB
+        config.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 2 * 1024 * 1024);  // 2MB
+        config.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 32 * 1024 * 1024);   // 32MB
+
         return new DefaultKafkaProducerFactory<>(config);
     }
     @Bean

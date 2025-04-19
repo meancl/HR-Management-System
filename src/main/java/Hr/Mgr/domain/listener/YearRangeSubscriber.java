@@ -1,4 +1,4 @@
-package Hr.Mgr.domain.config;
+package Hr.Mgr.domain.listener;
 
 import Hr.Mgr.domain.serviceImpl.AttendanceStatisticsServiceImpl;
 import Hr.Mgr.domain.serviceImpl.AttendanceStatisticsServiceImpl.IntRange;
@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -24,18 +25,21 @@ import static Hr.Mgr.domain.serviceImpl.AttendanceStatisticsServiceImpl.ATTENDAN
 @RequiredArgsConstructor
 public class YearRangeSubscriber implements MessageListener {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
+    private final ObjectMapper objectMapper;
     private final RedisTemplate<String, String> redisTemplate;
     private final AttendanceStatisticsServiceImpl attendanceStatisticsService;
-    private Logger logger = LoggerFactory.getLogger(MessageListener.class);
-    int maxConcurrency = 3;
-    private final Semaphore semaphore = new Semaphore(maxConcurrency);
-    private final ExecutorService executorService = Executors.newFixedThreadPool(maxConcurrency);
+    private final Logger logger = LoggerFactory.getLogger(MessageListener.class);
+
+    @Value("${attendance-threads}")
+    private int maxConcurrency;
+
     @Override
     public void onMessage(Message message, byte[] pattern) {
         String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
         String body = new String(message.getBody(), StandardCharsets.UTF_8);
+
+        Semaphore semaphore = new Semaphore(maxConcurrency);
+        ExecutorService executorService = Executors.newFixedThreadPool(maxConcurrency);
 
         try {
             String yearRangeJsonData;

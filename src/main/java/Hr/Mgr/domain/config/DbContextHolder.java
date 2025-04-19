@@ -20,12 +20,12 @@ public class DbContextHolder {
 
     public static void setContext(String newContext) {
         CONTEXT.set(newContext);
-        // print();
+//         print();
     }
     public static String getCurrentDb() { return CONTEXT.get(); }
 
     public static void clear() {
-        CONTEXT.remove();
+        //CONTEXT.remove();
     }
 
     public static void print(){

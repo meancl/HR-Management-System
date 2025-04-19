@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <!-- 콘솔 출력 (UTF-8 적용) -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <charset>UTF-8</charset>
@@ -9,8 +8,13 @@
         </encoder>
     </appender>
 
+    <!-- Hibernate SQL 출력 -->
+    <logger name="org.hibernate.SQL" level="DEBUG" additivity="false"/>
+
+    <!-- ✅ Hibernate 6.x: 파라미터 출력 -->
+    <logger name="org.hibernate.orm.jdbc.bind" level="TRACE" additivity="false"/>
+
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
-
 </configuration>

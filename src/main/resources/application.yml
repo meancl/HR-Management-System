@@ -21,8 +21,10 @@ spring:
       ddl-auto: update
     properties:
       hibernate:
-        show_sql: true
         format_sql: true
+        highlight_sql: true
+        use_sql_comments: true
+        log_bind_parameters: true  # ✅ 핵심 설정 (Hibernate 6.x부터 도입)
         dialect: org.hibernate.dialect.MySQLDialect
 
   jackson:
@@ -49,12 +51,10 @@ custom:
   kafka:
     topic:
       attendance: attendance-topic
-      insert-attendance-statistics: insert-attendance-statistics-topic
-      calculate-attendance-statistics: attendance-statistics-topic
+      insert-attendance-statistics: single-insert-attendance-statistics-topic
     group-id:
       attendance: attendance-group
-      insert-attendance-statistics: insert-attendance-statistics-group2
-      calculate-attendance-statistics: calculate-attendance-statistics-group2
+      insert-attendance-statistics: insert-attendance-statistics-group
       generic: generic-group
 
   output:
@@ -63,13 +63,10 @@ custom:
 
 logging:
   level:
-    org.hibernate.sql: DEBUG
-    org.hibernate.orm.jdbc.bind: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.apache.kafka.clients.consumer.ConsumerConfig: WARN
     org.apache.kafka: WARN #INFO
-#    org.springframework.kafka: DEBUG
-#    org.springframework.kafka.listener: DEBUG
-#    org.springframework.kafka.core: DEBUG
 
 app:
   giant_data_init: none

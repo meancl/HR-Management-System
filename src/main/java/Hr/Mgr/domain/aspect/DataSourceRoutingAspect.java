@@ -1,5 +1,7 @@
-package Hr.Mgr.domain.config;
+package Hr.Mgr.domain.aspect;
 
+import Hr.Mgr.domain.config.DbContextHolder;
+import jakarta.annotation.Priority;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Aspect;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.lang.reflect.Method;
 
 @Aspect
+@Priority(0)
 @Component
 public class DataSourceRoutingAspect {
 

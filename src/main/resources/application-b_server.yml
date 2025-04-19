@@ -1,16 +1,4 @@
 spring:
-#  datasource:
-#    url: jdbc:mysql://mjhr.duckdns.org:3306/hr_mgr?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-#    username: root
-#    password: root
-#    driver-class-name: com.mysql.cj.jdbc.Driver
-
-#replication:
-#  datasource:
-#    url: jdbc:mysql://localhost:3306/hr_mgr?useSSL=false&serverTimezone=Asia/Seoul
-#    username: repl
-#    password: repl
-#    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     properties:
@@ -36,3 +24,6 @@ spring:
     check-template-location: true
 
 server-name: repl
+
+attendance-threads: 1
+attendance-calculate-threads: 1

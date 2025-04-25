@@ -12,11 +12,9 @@ HR Management System은 사내 인사 정보를 통합 관리하는 시스템으
 - 사원 등록 및 정보 조회
 - 부서/직책 관리
 - 출결 기록 등록 및 통계 처리
-  - 단일/배치/혼합 전략 비교 및 성능 개선
 - 급여 및 연봉 계산 관리
 - 휴가 신청 및 사용 내역 관리
 - 공지사항 등록 및 첨부파일 업로드
-- JWT 기반 인증 및 사용자 권한 분리
 - 관리자용 통계 API 제공
 - 대용량 데이터 처리 시 병렬 처리 및 Kafka 연동
 
@@ -24,11 +22,11 @@ HR Management System은 사내 인사 정보를 통합 관리하는 시스템으
 
 ## 기술 스택
 
-- **백엔드**: Java 21, Spring Boot 3, Spring Data JPA
-- **DB**: MySQL 8 (파티셔닝 기반), Redis (분산락 처리)
+- **백엔드**: Java 17, Spring Boot 3, Spring Data JPA
+- **DB**: MySQL 8, Redis
 - **메시징**: Apache Kafka
 - **빌드 도구**: Gradle
-- **기타**: JUnit 6, Lombok, Swagger, QueryDSL
+- **기타**: JUnit 5, Lombok
 
 ---
 

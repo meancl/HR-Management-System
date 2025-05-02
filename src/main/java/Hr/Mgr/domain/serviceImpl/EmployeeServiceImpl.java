@@ -2,13 +2,10 @@ package Hr.Mgr.domain.serviceImpl;
 
 import Hr.Mgr.domain.dto.EmployeeReqDto;
 import Hr.Mgr.domain.dto.EmployeeResDto;
-import Hr.Mgr.domain.entity.Department;
 import Hr.Mgr.domain.entity.Employee;
 import Hr.Mgr.domain.enums.EmployeeStatus;
 import Hr.Mgr.domain.exception.EmployeeNotFoundException;
-import Hr.Mgr.domain.repository.DepartmentRepository;
 import Hr.Mgr.domain.repository.EmployeeRepository;
-import Hr.Mgr.domain.service.DepartmentService;
 import Hr.Mgr.domain.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -19,25 +16,19 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 
 @Service
-@Transactional
+@RequiredArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmployeeService.class);
     private final EmployeeRepository employeeRepository;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final DepartmentService departmentService;
 
-    public EmployeeServiceImpl(EmployeeRepository employeeRepository, BCryptPasswordEncoder passwordEncoder, DepartmentService departmentService) {
-        this.employeeRepository = employeeRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.departmentService = departmentService;
-    }
 
     @Override
-    public Long createEmployee(EmployeeReqDto request) {
+    @Transactional
+    public EmployeeResDto createEmployee(EmployeeReqDto request) {
         logger.info(" 회원가입 요청: 이메일={}, 이름={}", request.getEmail(), request.getName());
 
         try {
@@ -51,7 +42,7 @@ public class EmployeeServiceImpl implements EmployeeService {
             Employee save = employeeRepository.save(employee);
             logger.info(" 회원가입 성공: 이메일={}", request.getEmail());
 
-            return save.getId();
+            return new EmployeeResDto(save);
         }
         catch (Exception e) {
             logger.error(" 회원가입 실패: 이메일={}, 에러={}", request.getEmail(), e.getMessage());
@@ -60,6 +51,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @Transactional
     public void updateEmployee(Long id, EmployeeReqDto request) {
         Employee employee = findEmployeeEntityById(id);
         update(employee, request);
@@ -85,49 +77,22 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional(readOnly = true)
     public Employee findEmployeeEntityById(Long employeeId) {
-        return employeeRepository.findWithDepartmentById(employeeId)
+        return employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException("해당 ID의 직원을 찾을 수 없습니다: " + employeeId));
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<EmployeeResDto> findAllEmployeeDtos(Pageable pageable) {
-
         return employeeRepository.findAll(pageable)
-//                .filter(employee-> employee.getEmployeeStatus() != EmployeeStatus.TERMINATED)
                 .map(EmployeeResDto::new);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<EmployeeResDto> findAllEmployeeDtos() {
-
-        return employeeRepository.findAll().stream()
-//                .filter(employee-> employee.getEmployeeStatus() != EmployeeStatus.TERMINATED)
-                .map(EmployeeResDto::new).toList();
-    }
-    @Override
-    @Transactional(readOnly = true)
-    public List<Employee> findAllEmployeeEntities() {
-        return employeeRepository.findAllEmployeesWithDepartment();
-    }
-
-    @Override
+    @Transactional
     public void deleteEmployee(Long id) {
         Employee employee = findEmployeeEntityById(id);
         employee.setEmployeeStatus(EmployeeStatus.TERMINATED);
-//        employeeRepository.deleteById(id);
-    }
-
-    @Override
-    public EmployeeResDto updateDepartment(Long employeeId, Long departmentId) {
-        Department department = departmentService.findDepartmentEntityById(departmentId);
-        Employee employee =  findEmployeeEntityById(employeeId);
-
-        employee.setDepartment(department);
-        department.getEmployees().add(employee);
-
-        return new EmployeeResDto(employeeRepository.save(employee));
-
+        // employeeRepository.deleteById(id);
     }
 }

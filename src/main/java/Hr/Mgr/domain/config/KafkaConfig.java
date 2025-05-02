@@ -1,5 +1,7 @@
 package Hr.Mgr.domain.config;
 
+import Hr.Mgr.domain.converter.SnappyValueDeserializer;
+import Hr.Mgr.domain.converter.SnappyValueSerializer;
 import Hr.Mgr.domain.dto.AttendanceReqDto;
 import Hr.Mgr.domain.entity.QuarterlyAttendanceStatistics;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -16,7 +18,6 @@ import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +63,7 @@ public class KafkaConfig {
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, SnappyValueSerializer.class );
-        config.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 2 * 1024 * 1024);  // 2MB
+        config.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 3 * 1024 * 1024);  // 3MB
         config.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 32 * 1024 * 1024);   // 32MB
 
         return new DefaultKafkaProducerFactory<>(config);

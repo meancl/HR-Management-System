@@ -11,11 +11,6 @@ public interface FileService {
     FileDto createFile(MultipartFile file, Long uploaderId);
     FileEntity createFileEntity(MultipartFile file, Long uploaderId);
     Resource findFileResourceById(Long fileId);
-    Resource findFileResourceByName(String fileName);
     FileDto findFileDtoById(Long fileId);
-    FileDto findLatestFileDtoByEmployeeId(Long employeeId);
-    List<FileDto> findAllFileDtos();
-    List<FileDto> findFileDtosByEmployeeId(Long employeeId);
-    FileDto updateFile(Long fileId, MultipartFile newFile);
     void deleteFile(Long fileId);
 }

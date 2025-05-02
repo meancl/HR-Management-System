@@ -9,9 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class NoticeTransactionService {
+public class NoticePersistenceService {
     private final NoticeRepository noticeRepository;
-
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Notice saveNoticeInNewTransaction(Notice notice) {
         return noticeRepository.save(notice);

@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-@Controller
+@RestController
 @RequestMapping("/attendances")
 @RequiredArgsConstructor
 public class AttendanceController {
@@ -18,8 +18,7 @@ public class AttendanceController {
     private final AttendanceService attendanceService;
 
 
-    @PostMapping("/new")
-    @ResponseBody
+    @PostMapping
     public ResponseEntity<?> createAttendance(@RequestBody AttendanceReqDto attendanceReqDto) {
 
 

@@ -3,67 +3,46 @@ package Hr.Mgr.domain.controller;
 import Hr.Mgr.domain.dto.SalaryReqDto;
 import Hr.Mgr.domain.dto.SalaryResDto;
 import Hr.Mgr.domain.service.SalaryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Controller
+@RestController
 @RequestMapping("/salaries")
+@RequiredArgsConstructor
 public class SalaryController {
 
     private final SalaryService salaryService;
 
-    public SalaryController(SalaryService salaryService) {
-        this.salaryService = salaryService;
-    }
-
-    // 특정 직원의 급여 목록 조회
     @GetMapping("/employee/{employeeId}")
-    public String getSalariesByEmployee(@PathVariable Long employeeId, Model model) {
+    public ResponseEntity<List<SalaryResDto>> getSalariesByEmployee(@PathVariable Long employeeId) {
         List<SalaryResDto> salaries = salaryService.getSalariesByEmployee(employeeId);
-        model.addAttribute("salaries", salaries);
-        model.addAttribute("employeeId", employeeId);
-        return "/salary/listSalary";
+        return ResponseEntity.ok(salaries);
     }
 
-    // 급여 생성 폼
-    @GetMapping("/create/{employeeId}")
-    public String showCreateSalaryForm(@PathVariable Long employeeId, Model model) {
-        model.addAttribute("salaryReqDto", new SalaryReqDto());
-        model.addAttribute("employeeId", employeeId);
-        return "/salary/createSalaryForm";
-    }
-
-    // 급여 생성 처리
-    @PostMapping("/create/{employeeId}")
-    public String createSalary(@PathVariable Long employeeId, @ModelAttribute SalaryReqDto salaryReqDto) {
+    @PostMapping("/employee/{employeeId}")
+    public ResponseEntity<Void> createSalary(@PathVariable Long employeeId,
+                                             @RequestBody SalaryReqDto salaryReqDto) {
         salaryReqDto.setEmployeeId(employeeId);
         salaryService.createSalary(salaryReqDto);
-        return "redirect:/employees/" + employeeId;
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    // 급여 수정 폼
-    @GetMapping("/edit/{salaryId}")
-    public String showEditSalaryForm(@PathVariable Long salaryId, Model model) {
-        SalaryResDto salary = salaryService.getSalaryById(salaryId);
-        model.addAttribute("salary", salary);
-        return "/salary/editSalaryForm";
-    }
-
-    // 급여 수정 처리
-    @PostMapping("/edit/{salaryId}")
-    public String editSalary(@PathVariable Long salaryId, @ModelAttribute SalaryReqDto salaryReqDto) {
+    @PatchMapping("/{salaryId}")
+    public ResponseEntity<Void> editSalary(@PathVariable Long salaryId, @RequestBody SalaryReqDto salaryReqDto) {
         salaryService.updateSalary(salaryId, salaryReqDto);
-        return "redirect:/employees/" + salaryReqDto.getEmployeeId();
+        return ResponseEntity.ok().build();
     }
 
-    // 급여 삭제 처리
-    @GetMapping("/delete/{salaryId}")
-    public String deleteSalary(@PathVariable Long salaryId) {
+    @DeleteMapping("/{salaryId}")
+    public  ResponseEntity<Void> deleteSalary(@PathVariable Long salaryId) {
         SalaryResDto salary = salaryService.getSalaryById(salaryId);
         salaryService.deleteSalary(salaryId);
-        return "redirect:/employees/" + salary.getEmployeeId();
+        return ResponseEntity.noContent().build();
     }
 }

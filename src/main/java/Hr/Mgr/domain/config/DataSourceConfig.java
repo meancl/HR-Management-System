@@ -29,7 +29,7 @@ public class DataSourceConfig {
     public DataSource routingDataSource(
             @Qualifier("masterWriteDataSource") DataSource masterWriteDataSource,
             @Qualifier("masterReadDataSource") DataSource masterReadDataSource,
-                @Qualifier("replicaWriteDataSource") DataSource replicaWriteDataSource,
+            @Qualifier("replicaWriteDataSource") DataSource replicaWriteDataSource,
             @Qualifier("replicaReadDataSource") DataSource replicaReadDataSource,
             @Qualifier("defaultDataSource") DataSource defaultDataSource
     ) {
@@ -83,6 +83,7 @@ public class DataSourceConfig {
         HikariDataSource hikari =  new HikariDataSource(config);
         return new LoggingDataSource(hikari, name);
     }
+
     @Bean
     public NamedParameterJdbcTemplate namedParameterJdbcTemplate(@Qualifier("dataSource") DataSource dataSource) {
         return new NamedParameterJdbcTemplate(dataSource);

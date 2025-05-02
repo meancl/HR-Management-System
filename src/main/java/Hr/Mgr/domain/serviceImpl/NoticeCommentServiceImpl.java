@@ -19,8 +19,6 @@ import java.util.List;
 public class NoticeCommentServiceImpl implements NoticeCommentService {
 
     private final NoticeCommentRepository noticeCommentRepository;
-
-
     private final NoticeService noticeService;
     private final EmployeeService employeeService;
 

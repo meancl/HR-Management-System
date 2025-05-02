@@ -2,15 +2,12 @@ package Hr.Mgr.domain.serviceImpl;
 
 import Hr.Mgr.domain.aspect.LogStartTime;
 import Hr.Mgr.domain.aspect.MeasureExecutionTime;
-import Hr.Mgr.domain.dto.AttendanceResDto;
 import Hr.Mgr.domain.entity.Attendance;
 import Hr.Mgr.domain.entity.Employee;
 import Hr.Mgr.domain.entity.QuarterlyAttendanceStatistics;
 import Hr.Mgr.domain.init.DataInitializer;
-import Hr.Mgr.domain.repository.QuarterlyAttendanceStatisticsRepository;
 import Hr.Mgr.domain.service.AttendanceService;
 import Hr.Mgr.domain.service.AttendanceStatisticsService;
-import Hr.Mgr.domain.service.EmployeeService;
 import Hr.Mgr.domain.statistics.EmployeeQuarterlyStatAccumulator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,12 +19,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.*;
@@ -43,8 +40,6 @@ import java.util.stream.Collectors;
 public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsService {
 
     private final AttendanceService attendanceService;
-    private final EmployeeService employeeService;
-    private final QuarterlyAttendanceStatisticsRepository statsRepository;
     private final KafkaTemplate<String, Object> compressedKafkaTemplate;
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final RedisTemplate<String, String> redisTemplate;
@@ -59,10 +54,8 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
     private String serverName;
     public static Map<String, DataInitializer.DepartmentPolicy> policies = new HashMap<>();
 
-    public AttendanceStatisticsServiceImpl(AttendanceService attendanceService, EmployeeService employeeService, QuarterlyAttendanceStatisticsRepository statsRepository, @Qualifier("compressedKafkaTemplate") KafkaTemplate<String, Object> compressedKafkaTemplate, NamedParameterJdbcTemplate jdbcTemplate, RedisTemplate redisTemplate, ExecutorService executor, ObjectMapper objectMapper) {
+    public AttendanceStatisticsServiceImpl(AttendanceService attendanceService, @Qualifier("compressedKafkaTemplate") KafkaTemplate<String, Object> compressedKafkaTemplate, NamedParameterJdbcTemplate jdbcTemplate, RedisTemplate redisTemplate, ExecutorService executor, ObjectMapper objectMapper) {
         this.attendanceService = attendanceService;
-        this.employeeService = employeeService;
-        this.statsRepository = statsRepository;
         this.compressedKafkaTemplate = compressedKafkaTemplate;
         this.jdbcTemplate = jdbcTemplate;
         this.redisTemplate = redisTemplate;
@@ -79,41 +72,41 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
 
     @Override
     @LogStartTime
-    public void createAttendanceStatistics() {
-        int minAttendanceYear = 2015; // attendanceService.getMinAttendanceYear();
-        int maxAttendanceYear = 2019; // attendanceService.getMaxAttendanceYear();
- //  2020 2021 2022 2023 2024 2025
+    public void calculateAttendanceQuarterlyStatistics() {
+        int minAttendanceYear = attendanceService.getMinAttendanceYear();
+        int maxAttendanceYear = attendanceService.getMaxAttendanceYear();
+
         if(minAttendanceYear == 0 || maxAttendanceYear == 0) // 데이터 없을떄
             throw new RuntimeException("there is no attendance Year Data");
 
 
-        for (int start = minAttendanceYear; start <= maxAttendanceYear; start++) {
-            logger.info("{} : {} send", serverName, start);
-            IntRange intRange = new IntRange(start, start);
-            try {
-                String yearRangeJsonData = objectMapper.writeValueAsString(intRange);
-                redisTemplate.opsForList().rightPush(ATTENDANCE_STATISTICS_YEAR_KEY, yearRangeJsonData);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        //        int start = minAttendanceYear;
-//
-//        while (start <= maxAttendanceYear) {
-//            int end = Math.min(start + 1, maxAttendanceYear);  // 2년 단위로, 마지막 1년은 혼자 처리됨
-//
-//            logger.info("{} : {} and {} send", serverName, start, end);
-//            IntRange intRange = new IntRange(start, end);
-//
+        // 매년으로 분리한 case
+//        for (int start = minAttendanceYear; start <= maxAttendanceYear; start++) {
+//            logger.info("{} : {} send", serverName, start);
+//            IntRange intRange = new IntRange(start, start);
 //            try {
 //                String yearRangeJsonData = objectMapper.writeValueAsString(intRange);
 //                redisTemplate.opsForList().rightPush(ATTENDANCE_STATISTICS_YEAR_KEY, yearRangeJsonData);
 //            } catch (JsonProcessingException e) {
 //                throw new RuntimeException(e);
 //            }
-//
-//            start = end + 1;
 //        }
+        int current = maxAttendanceYear;
+        while (current >= minAttendanceYear) {
+            int start = Math.max(minAttendanceYear, current - 1); // 2년 단위로, 마지막 1년은 혼자 처리됨
+
+            logger.info("{} : {} and {} send", serverName, start, current);
+            IntRange intRange = new IntRange(start, current);
+
+            try {
+                String yearRangeJsonData = objectMapper.writeValueAsString(intRange);
+                redisTemplate.opsForList().rightPush(ATTENDANCE_STATISTICS_YEAR_KEY, yearRangeJsonData);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+
+            current = start - 1;
+        }
         // redis alarm
         redisTemplate.convertAndSend("statistics", "start!");
     }
@@ -156,29 +149,50 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
                 Map<Long, EmployeeQuarterlyStatAccumulator> empMap = new HashMap<>();
                 accumulators.put(statKey, empMap);
 
-                final int finalYear = curYear;
-                final int finalQuarterIndex = quarterIndex;
-                final int finalSMonth = sMonth;
-                final int finalEMonth = eMonth;
+                int finalYear = curYear;
+                int finalQuarterIndex = quarterIndex;
+                int finalSMonth = sMonth;
+                int finalEMonth = eMonth;
 
                 Future<Void> future = executor.submit(() -> {
                     logger.info(statKey + "작업 시작");
                     int page = 0;
-                    int size = 5000;
+                    int size = 10000;
+
+                    // pagination 작업
                     Page<Attendance> pageResult;
                     do {
                         logger.info("{} on {}", statKey, page);
                         Pageable pageable = PageRequest.of(page, size);
-                        pageResult = attendanceService.findAttendanceEntitiesByYearAndMonths(finalYear, finalSMonth, finalEMonth, pageable);
-                        logger.info("📊 pageData size = {}", pageResult.getContent().size());
+                        pageResult = attendanceService.findAttendancePageByYearAndMonths(finalYear, finalSMonth, finalEMonth, pageable);
+                        logger.info("PageData size = {}", pageResult.getContent().size());
                         accumulatePageData(pageResult.getContent(), empMap, finalYear, finalQuarterIndex);
                         page++;
 
-                    } while (page < 10); //  pageResult.hasNext());
+                    } while (pageResult.hasNext());
 
-                    logger.info(statKey + "삽입 시작");
+//                    // slice 작업(cursor pagination)
+//                    Long lastId = 0L;
+//                    boolean hasNext = true;
+//                    while (hasNext) {
+//                        logger.info("{} on {}", statKey, page++);
+//                        Pageable pageable = PageRequest.of(0, size); // 항상 0페이지 (슬라이스니까)
+//                        Slice<Attendance> slice = attendanceService.findAttendanceSliceByYearAndMonths(lastId, finalYear, finalSMonth, finalEMonth, pageable);
+//                        List<Attendance> content = slice.getContent();
+//                        logger.info("PageData size = {}", content.size());
+//
+//                        accumulatePageData(content, empMap, finalYear, quarterIndex);
+//
+//                        if (!content.isEmpty()) {
+//                            lastId = content.get(content.size() - 1).getId(); // 다음 페이지 기준
+//                        }
+//
+//                        hasNext = slice.hasNext();
+//                    }
+
+                    logger.info("{} 삽입 시작", statKey);
                     sendKafkaToFinalizeStatistics(accumulators.get(statKey));
-                    logger.info(statKey + "삽입 끝");
+                    logger.info("{} 삽입 끝", statKey);
                     accumulators.remove(statKey);
                     return null;
                 });
@@ -191,18 +205,18 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
             try {
                 future.get();
             } catch (InterruptedException | ExecutionException e) {
-                logger.error("❌ 통계 처리 중 오류 발생 ", e);
+                logger.error("X 통계 처리 중 오류 발생 ", e);
             }
         }
-        logger.info("✅ ( {} , {} ) 모든 통계 계산 완료", minAttendanceYear, maxAttendanceYear );
+        logger.info("( {} , {} ) 모든 통계 계산 완료", minAttendanceYear, maxAttendanceYear );
     }
 
-    public void sendKafkaToFinalizeStatistics(Map<Long, EmployeeQuarterlyStatAccumulator> accumulators) {
+    private void sendKafkaToFinalizeStatistics(Map<Long, EmployeeQuarterlyStatAccumulator> accumulators) {
         List<QuarterlyAttendanceStatistics> results = accumulators.values().stream()
                 .map(EmployeeQuarterlyStatAccumulator::toFinalStatistics)
                 .toList();
 
-        int BATCH_SIZE = 10;
+        int BATCH_SIZE = 2000;
         for (int i = 0; i < results.size(); i += BATCH_SIZE) {
             List<QuarterlyAttendanceStatistics> batch = results.subList(
                     i, Math.min(i + BATCH_SIZE, results.size())
@@ -211,11 +225,33 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
         }
     }
 
-
-
-
     @Transactional
-    public void batchInsertAttendancesStatistics(List<MapSqlParameterSource> batchParams) {
+    @MeasureExecutionTime
+    public void insertQuarterlyStatisticsBatch(List<QuarterlyAttendanceStatistics> quarterlyAttendances) throws JsonProcessingException {
+
+
+        List<MapSqlParameterSource> batchParams = new ArrayList<>();
+
+        for (QuarterlyAttendanceStatistics quarterlyAttendance : quarterlyAttendances) {
+            String json = objectMapper.writeValueAsString(quarterlyAttendance.getWeeklyWorkMinutes());
+            LocalDateTime now = LocalDateTime.now();
+            batchParams.add(new MapSqlParameterSource()
+                    .addValue("avg_end_time", quarterlyAttendance.getAvgEndTime())
+                    .addValue("avg_overtime_minutes", quarterlyAttendance.getAvgOvertimeMinutes())
+                    .addValue("avg_start_time", quarterlyAttendance.getAvgStartTime())
+                    .addValue("avg_work_minutes", quarterlyAttendance.getAvgWorkMinutes())
+                    .addValue("department", quarterlyAttendance.getDepartment())
+                    .addValue("employee_id", quarterlyAttendance.getEmployeeId())
+                    .addValue("holiday_work_ratio", quarterlyAttendance.getHolidayWorkRatio())
+                    .addValue("late_count", quarterlyAttendance.getLateCount())
+                    .addValue("present_days", quarterlyAttendance.getPresentDays())
+                    .addValue("quarter", quarterlyAttendance.getQuarter())
+                    .addValue("present_days", quarterlyAttendance.getPresentDays())
+                    .addValue("weekly_work_minutes", json)
+                    .addValue("year", quarterlyAttendance.getYear())
+                    .addValue("created_at", now)
+                    .addValue("updated_at", now));
+        }
 
         String sql = "INSERT INTO quarterly_attendance_statistics ("
                 + "avg_end_time, avg_overtime_minutes, avg_start_time, avg_work_minutes, "
@@ -230,13 +266,9 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
         jdbcTemplate.batchUpdate(sql, batchParams.toArray(new MapSqlParameterSource[0]));
     }
 
-
-    public void accumulatePageData(List<Attendance> pageData,
-                                   Map<Long, EmployeeQuarterlyStatAccumulator> employeeMap,
-                                   int year, int quarter) {
+    private void accumulatePageData(List<Attendance> pageData, Map<Long, EmployeeQuarterlyStatAccumulator> employeeMap,
+                                    int year, int quarter) {
         try {
-            // TODO. employee데이터가 몇개 들어오는지 확인
-            // TODO. 실제 sql 문 확인
             Map<Long, List<Attendance>> byEmployee = pageData.stream()
                     .collect(Collectors.groupingBy(att -> att.getEmployee().getId()));
 
@@ -273,8 +305,6 @@ public class AttendanceStatisticsServiceImpl implements AttendanceStatisticsServ
             logger.error(e.toString());
         }
     }
-
-
 
     private void writeDepartmentPolicies() {
         policies.put("HR", new DataInitializer.DepartmentPolicy(2500000, 3500000, 3, 7, 0.3,

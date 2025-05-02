@@ -57,7 +57,7 @@ public class Attendance {
         return Duration.ZERO;
     }
 
-    protected Attendance(){}
+    public Attendance(){}
 
     public Attendance(Employee employee, LocalDate attendanceDate, LocalTime checkInTime, LocalTime checkOutTime, AttendanceStatus attendanceStatus ){
         this.employee = employee;

@@ -15,6 +15,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -51,6 +53,8 @@ public class YearRangeSubscriber implements MessageListener {
                     logger.info("{} 선점!!", yearRangeJsonData);
                     if (yearRangeJsonData == null) {
                         semaphore.release();
+                        String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                        logger.info("⏱ 통계작업 종료: {}", now);
                         break;
                     }
                     IntRange yearRange = objectMapper.readValue(yearRangeJsonData, new TypeReference<IntRange>() {

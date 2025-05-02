@@ -6,6 +6,8 @@ import Hr.Mgr.domain.service.EmployeeService;
 import Hr.Mgr.domain.service.NoticeCommentService;
 import Hr.Mgr.domain.service.NoticeService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-@Controller
+@RestController
 @RequestMapping("/notices")
 @RequiredArgsConstructor
 public class NoticeController {
@@ -22,51 +24,37 @@ public class NoticeController {
     private final NoticeCommentService noticeCommentService;
     private final EmployeeService employeeService;
 
-    // 게시글 목록 조회
     @GetMapping
-    public String listNotices(Model model) {
+    public ResponseEntity<List<NoticeDto>> listNotices() {
         List<NoticeDto> notices = noticeService.getAllNotices();
-        model.addAttribute("notices", notices);
-        return "/notice/listNotices"; // listNotices.html
-    }
-    // 🔹 새 게시글 작성 폼 (작성자 목록 불러오기)
-    @GetMapping("/new")
-    public String showCreateForm(Model model) {
-        model.addAttribute("notice", new NoticeDto());
-        model.addAttribute("employees", employeeService.findAllEmployeeDtos());
-        return "/notice/addNotice";
+        return ResponseEntity.ok(notices);
     }
 
-    // 🔹 새 게시글 저장 처리
-    @PostMapping("/new")
-    public String createNotice(@ModelAttribute NoticeDto noticeDto,
-                               @RequestParam("files") List<MultipartFile> files) {
+    @PostMapping
+    public ResponseEntity<Void> createNotice(@RequestPart NoticeDto noticeDto,
+                                             @RequestPart(required = false) List<MultipartFile> files) {
         if(files.size() == 1 && files.get(0).getOriginalFilename().isEmpty())
             files = null;
         noticeService.createNotice(noticeDto, files);
-        return "redirect:/notices"; // ✅ 저장 후 게시글 목록으로 이동
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
-    // 게시글 상세 조회
+
     @GetMapping("/{id}")
-    public String viewNotice(@PathVariable(name = "id") Long id, Model model) {
+    public ResponseEntity<NoticeDto> viewNotice(@PathVariable(name = "id") Long id) {
         NoticeDto notice = noticeService.getNoticeById(id);
-        List<NoticeCommentDto> comments = noticeCommentService.getCommentsByNotice(id);
-
-        model.addAttribute("notice", notice);
-        model.addAttribute("comments", comments);
-
-        return "/notice/viewNotice"; // viewNotice.html
+        return ResponseEntity.ok(notice);
     }
 
-    // 댓글 작성
-    @PostMapping("/{id}/comment")
-    public String addComment(@PathVariable Long id, @RequestParam String content) {
-        NoticeCommentDto commentDto = new NoticeCommentDto();
+    @PostMapping("/{id}/comments")
+    public  ResponseEntity<Void> addComment(@PathVariable Long id,  @RequestBody NoticeCommentDto commentDto) {
         commentDto.setNoticeId(id);
-        commentDto.setAuthorId(1L); // TODO: 로그인 유저 정보로 변경
-        commentDto.setContent(content);
-
         noticeCommentService.addComment(commentDto);
-        return "redirect:/notices/" + id;
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @GetMapping("/{id}/comments")
+    public ResponseEntity<List<NoticeCommentDto>> listComments(@PathVariable Long id) {
+        List<NoticeCommentDto> comments = noticeCommentService.getCommentsByNotice(id);
+        return ResponseEntity.ok(comments);
     }
 }

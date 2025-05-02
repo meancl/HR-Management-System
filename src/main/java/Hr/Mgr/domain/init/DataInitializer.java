@@ -466,7 +466,7 @@ public class DataInitializer implements CommandLineRunner {
     }
     private void batchInsertAttendances(List<MapSqlParameterSource> batchParams) {
         String sql = """
-            INSERT INTO attendance (employee_id, check_in_time, check_out_time, attendance_date, status) 
+            INSERT INTO attendance_partitioned (employee_id, check_in_time, check_out_time, attendance_date, status) 
             VALUES (:employeeId, :checkInTime, :checkOutTime, :attendanceDate, :status)
         """;
         jdbcTemplate.batchUpdate(sql, batchParams.toArray(new MapSqlParameterSource[0]));

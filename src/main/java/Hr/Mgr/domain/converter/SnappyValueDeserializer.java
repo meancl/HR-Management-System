@@ -1,4 +1,4 @@
-package Hr.Mgr.domain.config;
+package Hr.Mgr.domain.converter;
 
 import Hr.Mgr.domain.entity.QuarterlyAttendanceStatistics;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -19,7 +19,8 @@ public class SnappyValueDeserializer implements Deserializer<List<QuarterlyAtten
             if (data == null || data.length == 0) return null;
             objectMapper.registerModule(new JavaTimeModule());
             byte[] uncompressed = Snappy.uncompress(data);
-            return objectMapper.readValue(uncompressed, new TypeReference<List<QuarterlyAttendanceStatistics>>() {});
+            List<QuarterlyAttendanceStatistics> quarterlyAttendanceStatistics = objectMapper.readValue(uncompressed, new TypeReference<List<QuarterlyAttendanceStatistics>>() {});
+            return quarterlyAttendanceStatistics;
         } catch (Exception e) {
             throw new RuntimeException("Snappy 역직렬화 실패", e);
         }

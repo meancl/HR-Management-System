@@ -11,16 +11,15 @@ import Hr.Mgr.domain.repository.NoticeFileRepository;
 import Hr.Mgr.domain.service.EmployeeService;
 import Hr.Mgr.domain.service.FileService;
 import Hr.Mgr.domain.service.NoticeService;
-import Hr.Mgr.domain.service.NoticeTransactionService;
+import Hr.Mgr.domain.service.NoticePersistenceService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -32,8 +31,9 @@ public class NoticeServiceImpl implements NoticeService {
     private final NoticeRepository noticeRepository;
     private final NoticeFileRepository noticeFileRepository;
     private final FileService fileService;
+    private final NoticePersistenceService noticePersistenceService;
 
-    private final NoticeTransactionService noticeTransactionService;
+    private static final Logger logger = LoggerFactory.getLogger(NoticeService.class);
 
     @Override
     @Transactional
@@ -45,11 +45,10 @@ public class NoticeServiceImpl implements NoticeService {
         notice.setContent(noticeDto.getContent());
         notice.setAuthor(author);
 
-        Notice savedNotice = noticeTransactionService.saveNoticeInNewTransaction(notice);
-//        Notice savedNotice = noticeRepository.save(notice);
+        //        Notice savedNotice = noticeRepository.save(notice);
         // redis cache를 사용하려했는데 db정합성을 위해 비동기문에서 notice자체가 이미 commit되어야
-//        cacheManager.getCache("notice").put(savedNotice.getId(), savedNotice);
-
+        //        cacheManager.getCache("notice").put(savedNotice.getId(), savedNotice);
+        Notice savedNotice = noticePersistenceService.saveNoticeInNewTransaction(notice);
         NoticeDto returnNoticeDto = new NoticeDto(savedNotice);
 
         if(files != null)
@@ -65,7 +64,15 @@ public class NoticeServiceImpl implements NoticeService {
     // todo. 새로운 스레드는 transaction공유를 못하기에 새로운 transacition을 만들어줘야함
     private void uploadFilesAsync(List<MultipartFile> files, NoticeDto noticeDto) {
         for (MultipartFile file : files) {
-            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> uploadEachFile(file, noticeDto));
+
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() ->
+            {
+                try {
+                    uploadEachFile(file, noticeDto);
+                } catch (Exception e) {
+                    logger.error("파일 업로드 실패: {}", file.getOriginalFilename(), e);
+                }
+            });
         }
     }
 

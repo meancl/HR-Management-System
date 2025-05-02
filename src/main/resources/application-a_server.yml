@@ -18,5 +18,5 @@ spring:
     cache: false
 
 server-name: master
-attendance-threads: 2
-attendance-calculate-threads: 4
+attendance-threads: 3
+attendance-calculate-threads: 8

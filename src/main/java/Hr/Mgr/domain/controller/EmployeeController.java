@@ -3,87 +3,54 @@ package Hr.Mgr.domain.controller;
 import Hr.Mgr.domain.dto.EmployeeReqDto;
 import Hr.Mgr.domain.dto.EmployeeResDto;
 import Hr.Mgr.domain.service.EmployeeService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Controller
+@RestController
 @RequestMapping("/employees")
+@RequiredArgsConstructor
 public class EmployeeController {
 
     private final EmployeeService employeeService;
 
-    public EmployeeController(EmployeeService employeeService) {
-        this.employeeService = employeeService;
-    }
-
-    // ✅ 직원확인 폼 표시
     @GetMapping
-    public String listEmployees(@RequestParam(defaultValue = "0") int page,
-                                @RequestParam(defaultValue = "10") int size,
-                                Model model) {
+    public ResponseEntity<Page<EmployeeResDto>> listEmployees(@RequestParam(defaultValue = "0") int page,
+                                                              @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-
         Page<EmployeeResDto> employees = employeeService.findAllEmployeeDtos(pageable);
-        model.addAttribute("employees", employees);
-        return "/employee/listEmployees";
+        return ResponseEntity.ok(employees);
     }
 
-    // ✅ 특정 직원확인 폼 표시
     @GetMapping("/{id}")
-    public String listEmployee(@PathVariable("id") Long id, Model model) {
+    public ResponseEntity<EmployeeResDto> getEmployee(@PathVariable("id") Long id) {
         EmployeeResDto employee = employeeService.findEmployeeDtoById(id);
-        model.addAttribute("employee", employee);
-        return "/employee/listEmployee";
+        return ResponseEntity.ok(employee);
     }
 
-    // ✅ 회원가입 폼 표시
-    @GetMapping("/register")
-    public String showRegisterForm(Model model) {
-        model.addAttribute("employeeReqDto", new EmployeeReqDto());
-        return "/employee/createEmployeeForm"; // Thymeleaf 템플릿 파일명
-    }
-
-    // ✅ 회원가입 처리
-    @PostMapping("/register")
-    public String registerEmployee(@ModelAttribute EmployeeReqDto employeeReqDto) {
+    @PostMapping
+    public ResponseEntity<Void> registerEmployee(@RequestBody EmployeeReqDto employeeReqDto) {
         employeeService.createEmployee(employeeReqDto);
-
-        // TODO. 로그로 확인
-        return "redirect:/employees"; // 회원가입 후 로그인 페이지로 이동
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    // ✅ 직원 수정 폼
-    @GetMapping("/edit/{id}")
-    public String showEditForm(@PathVariable("id") Long id, Model model) {
-        EmployeeResDto employeeById = employeeService.findEmployeeDtoById(id);
-
-        EmployeeReqDto employeeReqDto = new EmployeeReqDto();
-
-        employeeReqDto.setAge(employeeById.getAge());
-        employeeReqDto.setName(employeeById.getName());
-        employeeReqDto.setEmail(employeeById.getEmail());
-
-        model.addAttribute("empId", id);
-
-        model.addAttribute("employeeDto", employeeReqDto);
-        return "/employee/editEmployeeForm";
-    }
-    // ✅ 직원 수정 처리
-    @PostMapping("/edit/{id}")
-    public String patchEmployee(@PathVariable("id") Long id, @ModelAttribute EmployeeReqDto employeeReqDto) {
+    @PatchMapping("/{id}")
+    public ResponseEntity<Void> updateEmployee(@PathVariable("id") Long id, @RequestBody EmployeeReqDto employeeReqDto) {
         employeeService.updateEmployee(id, employeeReqDto);
-        return "redirect:/employees";
+        return ResponseEntity.ok().build();
     }
-    // ✅ 직원 삭제 처리
-    @GetMapping("/delete/{id}")
-    public String deleteEmployee(@PathVariable("id") Long id) {
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteEmployee(@PathVariable("id") Long id) {
         employeeService.deleteEmployee(id);
-        return "redirect:/employees";
+        return ResponseEntity.noContent().build();
     }
 }

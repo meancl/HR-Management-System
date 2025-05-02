@@ -1,103 +1,122 @@
 package Hr.Mgr.domain.serviceImpl;
 
+
 import Hr.Mgr.domain.dto.AttendanceReqDto;
 import Hr.Mgr.domain.dto.AttendanceResDto;
-import Hr.Mgr.domain.dto.EmployeeReqDto;
+import Hr.Mgr.domain.entity.Attendance;
+import Hr.Mgr.domain.entity.Employee;
 import Hr.Mgr.domain.enums.AttendanceStatus;
-import Hr.Mgr.domain.service.AttendanceService;
+import Hr.Mgr.domain.repository.AttendanceRepository;
 import Hr.Mgr.domain.service.EmployeeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.transaction.annotation.Transactional;
+import org.mockito.*;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest
-@Transactional
 class AttendanceServiceImplTest {
 
-    @Autowired
+    @InjectMocks
+    private AttendanceServiceImpl attendanceService;
+
+    @Mock
+    private AttendanceRepository attendanceRepository;
+    @Mock
     private EmployeeService employeeService;
-
-    @Autowired
-    private AttendanceService attendanceService;
-
-    @Autowired
-    private BCryptPasswordEncoder bCryptPasswordEncoder;
-
-
-    private AttendanceResDto attendance;
-    private Long employeeId;
+    @Mock
+    private RedisTemplate<String, String> redisTemplate;
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+    @Mock
+    private NamedParameterJdbcTemplate jdbcTemplate;
+    @Mock
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @BeforeEach
-    void beforeEach() {
-//        EmployeeReqDto employeeReqDto = new EmployeeReqDto();
-//        employeeReqDto.setName("민재");
-//        employeeReqDto.setEmail("sbe03253@naver.com");
-//        employeeReqDto.setPassword(bCryptPasswordEncoder.encode("passwd1234"));
-//        employeeReqDto.setAge(30);
-//
-//        employeeId = employeeService.createEmployee(employeeReqDto);
-//
-//        AttendanceReqDto  attendanceReqDto = new AttendanceReqDto();
-//        attendanceReqDto.setEmployeeId(employeeId);
-//        attendanceReqDto.setAttendanceDate(LocalDate.of(2025, 1, 25));
-//        attendanceReqDto.setCheckInTime(LocalTime.of(8, 58, 22));
-//        attendanceReqDto.setCheckOutTime(LocalTime.of(18, 7, 12));
-//        attendanceReqDto.setAttendanceStatus(AttendanceStatus.PRESENT);
-//
-//        attendance = attendanceService.createAttendance(attendanceReqDto);
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
+    private AttendanceReqDto makeSampleDto() {
+        AttendanceReqDto attendanceReqDto = new AttendanceReqDto(1L, LocalDate.now(),LocalTime.of(9, 0),
+                LocalTime.of(18, 0), AttendanceStatus.PRESENT);
 
-    @Test
-    void hasRemainingRecordsTest(){
-        attendanceService.findAttendanceDtoById(2265073L);
-//        attendanceService.deleteAttendance(2L);
+        return attendanceReqDto;
     }
 
     @Test
-    void createAttendance() {
-        assertThat(attendance.getStatus()).isEqualTo(AttendanceStatus.PRESENT);
+    void testCreateAttendance_inBatchMode() {
+        // given
+        AttendanceReqDto dto = makeSampleDto();
+        attendanceService.isBatchModeActive = true;
+        ReflectionTestUtils.setField(attendanceService, "attendanceTopic", "test-topic");
+
+        when(redisTemplate.opsForValue().setIfAbsent(any(), any(), any()))
+                .thenReturn(true);
+
+        // when
+        AttendanceResDto result = attendanceService.createAttendance(dto);
+
+        // then
+        verify(kafkaTemplate).send(anyString(), eq(dto));
+        assertThat(result.getIsProcessed()).isFalse();
+
+        verify(redisTemplate).delete(contains("attendance create lock"));
     }
 
     @Test
-    void getLatestAttendanceByEmployee() {
-        AttendanceResDto latestAttendanceByEmployee = attendanceService.findLatestAttendanceDtoByEmployeeId(employeeId);
-        assertThat(latestAttendanceByEmployee.getStatus()).isNotEqualTo(AttendanceStatus.ABSENT);
+    void testCreateAttendance_directInsert() {
+        // given
+        AttendanceReqDto dto = makeSampleDto();
+        attendanceService.isBatchModeActive = false;
+
+
+        Employee employee = new Employee();
+        ReflectionTestUtils.setField(employee, "id", 1L); // 또는 employee.setId(1L); 가능하면
+
+        Attendance attendance = new Attendance(employee, dto.getAttendanceDate(), dto.getCheckInTime(), dto.getCheckOutTime(), dto.getAttendanceStatus());
+
+        when(redisTemplate.opsForValue().setIfAbsent(any(), any(), any()))
+                .thenReturn(true);
+        when(employeeService.findEmployeeEntityById(dto.getEmployeeId()))
+                .thenReturn(employee);
+        when(attendanceRepository.save(any()))
+                .thenReturn(attendance);
+
+        // when
+        AttendanceResDto result = attendanceService.createAttendance(dto);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getEmployeeId()).isEqualTo(dto.getEmployeeId());
+
+        verify(attendanceRepository).save(any());
+        verify(redisTemplate).delete(contains("attendance create lock"));
     }
 
     @Test
-    void getAttendanceById() {
-        AttendanceResDto attendanceById = attendanceService.findAttendanceDtoById(attendance.getId());
-        assertThat(attendanceById)
-                .usingRecursiveComparison().isEqualTo(attendance);
+    void testCreateAttendance_withRedisLockFail() {
+        // given
+        AttendanceReqDto dto = makeSampleDto();
+        when(redisTemplate.opsForValue().setIfAbsent(any(), any(), any()))
+                .thenReturn(false);
+
+        // when
+        AttendanceResDto result = attendanceService.createAttendance(dto);
+
+        // then
+        assertThat(result).isNull();
+        verify(attendanceRepository, never()).save(any());
     }
-
-
-    @Test
-    void updateAttendance() {
-        AttendanceReqDto attendanceReqDto = new AttendanceReqDto();
-        attendanceReqDto.setCheckInTime(LocalTime.of(9, 15));
-
-        AttendanceResDto attendanceResDto = attendanceService.updateAttendance(attendance.getId(), attendanceReqDto);
-        assertThat(attendance.getCheckInTime()).isNotEqualTo(attendanceResDto.getCheckInTime());
-    }
-
-    @Test
-    void deleteAttendance() {
-        attendanceService.deleteAttendance(attendance.getId());
-
-        assertThrows(IllegalArgumentException.class,
-                () -> attendanceService.findLatestAttendanceDtoByEmployeeId(employeeId));
-    }
-
 }

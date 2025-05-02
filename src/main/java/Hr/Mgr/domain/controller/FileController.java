@@ -11,17 +11,18 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 
-@Controller
+@RestController
 @RequestMapping("/files")
 @RequiredArgsConstructor
 public class FileController {
 
     private final FileService fileService;
 
-    @GetMapping("/download/{fileId}")
+    @GetMapping("/{fileId}/download")
     public ResponseEntity<Resource> downloadFile(@PathVariable Long fileId) {
         // 파일 정보 조회
         FileDto fileDto = fileService.findFileDtoById(fileId);

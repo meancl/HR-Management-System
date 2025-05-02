@@ -1,9 +1,9 @@
 package Hr.Mgr.domain.repository;
 
-import Hr.Mgr.domain.dto.AttendanceResDto;
 import Hr.Mgr.domain.entity.Attendance;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -23,9 +23,19 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @EntityGraph(attributePaths = {"employee", "employee.department"})
     @Query("SELECT at FROM Attendance at " +
             "WHERE at.attendanceDate >= :startDate AND at.attendanceDate < :endDate")
-    Page<Attendance> findByYearAndMonths(@Param("startDate") LocalDate startDate,
-                                         @Param("endDate") LocalDate endDate,
-                                         Pageable pageable);
+    Page<Attendance> findPageByAttendanceDateBetween(@Param("startDate") LocalDate startDate,
+                                                     @Param("endDate") LocalDate endDate,
+                                                     Pageable pageable);
+
+    @EntityGraph(attributePaths = {"employee", "employee.department"})
+    @Query("SELECT at FROM Attendance at " +
+            "WHERE at.attendanceDate >= :startDate " +
+            "AND at.attendanceDate < :endDate " +
+            "AND at.id > :lastId ORDER BY at.id ASC")
+    Slice<Attendance> findSliceByAttendanceDateBetweenAndIdAfter(@Param("startDate") LocalDate startDate,
+                                                                 @Param("endDate") LocalDate endDate,
+                                                                 @Param("lastId") Long lastId,
+                                                                 Pageable pageable);
 
     @Query("SELECT MIN(at.attendanceDate) FROM Attendance at")
     Optional<LocalDate> findMinDate();

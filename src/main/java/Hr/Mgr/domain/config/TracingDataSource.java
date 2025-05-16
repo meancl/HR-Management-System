@@ -1,6 +1,5 @@
 package Hr.Mgr.domain.config;
 
-import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.datasource.AbstractDataSource;
@@ -9,11 +8,11 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-public class LoggingDataSource extends AbstractDataSource {
+public class TracingDataSource extends AbstractDataSource {
     private final DataSource delegate;
     private final String name;
     private static final Logger logger = LoggerFactory.getLogger(AbstractDataSource.class);
-    public LoggingDataSource(DataSource delegate, String name) {
+    public TracingDataSource(DataSource delegate, String name) {
         this.delegate = delegate;
         this.name = name;
     }

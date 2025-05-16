@@ -32,6 +32,7 @@ import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 @Service
@@ -39,18 +40,13 @@ import java.util.concurrent.TimeUnit;
 @Transactional
 public class AttendanceServiceImpl implements AttendanceService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AttendanceService.class);
+
     private final AttendanceRepository attendanceRepository;
     private final EmployeeService employeeService;
     private final RedisTemplate<String, String> redisTemplate;
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-
-
-
-    public Boolean isBatchModeActive = false; // TODO. 테스트 위해서 public 으로 열어놓음
-    private static final Logger logger = LoggerFactory.getLogger(AttendanceService.class);
-    private static final String ATTENDANCE_LOCK_KEY = "attendance create lock";
-    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     @Value("${custom.kafka.topic.attendance}")
     private String attendanceTopic;
@@ -59,26 +55,39 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Value("${spring.kafka.bootstrap-servers}")
     private String kafkaServer;
 
+    private static final String ATTENDANCE_LOCK_KEY = "attendance create lock";
+    private AtomicBoolean isBatchModeActive = new AtomicBoolean(false);
+    private Integer batchFrequencyCounter  = 0;
+    private LocalDateTime batchInitTime;
+    private final Integer MAX_ACCESS_COUNT = 10;
+    private final Integer ACCESS_INTERVAL_SECONDS= 5;
+    private final Integer BATCH_DELAY = 60;
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+
+
 
     @Override
     public AttendanceResDto createAttendance(AttendanceReqDto dto) {
-
         // redis lock
         String lockKey = ATTENDANCE_LOCK_KEY + dto.getEmployeeId();
         Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, "lock", Duration.ofSeconds(60* 60));
         if (!Boolean.TRUE.equals(lockAcquired)) {
-            return null; // 중복 요청 처리 방지
+            return null;
         }
 
+        // 배치모드 판단
+        Boolean isBatchMode = checkBatchModeActive();
         try {
-            if (isBatchModeActive) {
+            // 배치모드
+            if (isBatchMode) {
                 kafkaTemplate.send(attendanceTopic, dto);
                 AttendanceResDto returnDto = new AttendanceResDto();
                 returnDto.setIsProcessed(false);
                 return returnDto;
             }
+            // 싱글모드
             else {
-                checkBatchModeActive();
                 Employee employee = employeeService.findEmployeeEntityById(dto.getEmployeeId());
                 Attendance attendance = new Attendance(
                         employee, dto.getAttendanceDate(), dto.getCheckInTime(), dto.getCheckOutTime(), dto.getAttendanceStatus()
@@ -89,36 +98,40 @@ public class AttendanceServiceImpl implements AttendanceService {
         finally {
              redisTemplate.delete(lockKey);
         }
-
     }
 
 
 
-
     /*
-    *  ACCESS_INTERVAL_SECONDS 시간 안에 MAX_ACCESS_COUNT 이상의 요청이 들어오면
-    *  isBatchModeActive 활성화 및 BATCH_DELAY 시간 후 처리할 데이터 체크 메서드 예약
-    * */
-    private Integer batchFrequencyCounter  = 0;
-    private LocalDateTime batchInitTime;
-    private final Integer MAX_ACCESS_COUNT = 10;
-    private final Integer ACCESS_INTERVAL_SECONDS= 5;
-    private final Integer BATCH_DELAY = 60;
+     * 배치 모드 활성 여부를 판단하는 메서드
+     *
+     * - 특정 시간 내에 요청이 일정 횟수를 초과하면 배치 모드 활성화
+     * - 활성화 시, 배치 모드를 유지할지 판단하는 함수 예약
+     *
+     * @return 현재 배치 모드 활성 상태 (true: 활성화됨, false: 비활성화됨)
+     */
+    private Boolean checkBatchModeActive(){
+        // 빠른 리턴 (락 최소화)
+        if (isBatchModeActive.get())
+            return true;
 
-
-    private void checkBatchModeActive(){
-        if(!isBatchModeActive) {
-            if (batchFrequencyCounter++ == 0)
-                batchInitTime = LocalDateTime.now();
-            else {
-                long durationSeconds = Duration.between(batchInitTime, LocalDateTime.now()).toSeconds();
-                if (durationSeconds <= ACCESS_INTERVAL_SECONDS && batchFrequencyCounter >= MAX_ACCESS_COUNT) {
-                    logger.info("batch mode 수행");
-                    isBatchModeActive = true;
-                    scheduler.schedule(this::checkRemainingKafkaRecords, BATCH_DELAY, TimeUnit.SECONDS);
-                } else if (durationSeconds > ACCESS_INTERVAL_SECONDS)
-                    batchFrequencyCounter = 0;
+        synchronized (this) {
+            if(!isBatchModeActive.get()) {
+                if (batchFrequencyCounter++ == 0)
+                    batchInitTime = LocalDateTime.now();
+                else {
+                    long durationSeconds = Duration.between(batchInitTime, LocalDateTime.now()).toSeconds();
+                    // 요청 빈도 체크
+                    if (durationSeconds <= ACCESS_INTERVAL_SECONDS && batchFrequencyCounter >= MAX_ACCESS_COUNT) {
+                        logger.info("batch mode 수행");
+                        isBatchModeActive.set(true);
+                        // 카프카 잔여 파티션에 따라, 배치 모드를 유지할지 판단하는 함수 예약
+                        scheduler.schedule(this::checkRemainingKafkaRecords, BATCH_DELAY, TimeUnit.SECONDS);
+                    } else if (durationSeconds > ACCESS_INTERVAL_SECONDS)
+                        batchFrequencyCounter = 0;
+                }
             }
+            return isBatchModeActive.get();
         }
     }
 
@@ -166,7 +179,7 @@ public class AttendanceServiceImpl implements AttendanceService {
                 scheduler.schedule(this::checkRemainingKafkaRecords, BATCH_DELAY, TimeUnit.SECONDS);
             } else {
                 logger.info("Batch mode 종료");
-                isBatchModeActive = false;
+                isBatchModeActive.set(false);
                 batchFrequencyCounter = 0;
             }
         }

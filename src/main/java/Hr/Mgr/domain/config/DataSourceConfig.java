@@ -2,13 +2,11 @@ package Hr.Mgr.domain.config;
 
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
-import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 import com.zaxxer.hikari.HikariConfig;
 import javax.sql.DataSource;
 import java.util.HashMap;
@@ -81,7 +79,7 @@ public class DataSourceConfig {
         config.setMinimumIdle(5);
 
         HikariDataSource hikari =  new HikariDataSource(config);
-        return new LoggingDataSource(hikari, name);
+        return new TracingDataSource(hikari, name);
     }
 
     @Bean

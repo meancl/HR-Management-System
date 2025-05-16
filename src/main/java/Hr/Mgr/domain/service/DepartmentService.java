@@ -9,5 +9,6 @@ import java.util.List;
 public interface DepartmentService {
     DepartmentDto createDepartment(DepartmentDto departmentDto);
     DepartmentDto findDepartmentByEmployeeId(Long employeeId);
+    Department findDepartmentEntityById(Long departmentId);
 
 }

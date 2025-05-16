@@ -32,5 +32,12 @@ public class DepartmentServiceImpl implements DepartmentService {
         return new DepartmentDto(byEmployeeId);
     }
 
+    @Override
+    public Department findDepartmentEntityById(Long departmentId) {
+        Department byEmployeeId = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new DepartmentNotFoundException("department not found exception with empId : " + departmentId ));
+        return byEmployeeId;
+    }
+
 
 }

@@ -36,7 +36,7 @@ public class EmployeeController {
         return ResponseEntity.ok(employee);
     }
 
-    @PostMapping
+    @PostMapping("/signup")
     public ResponseEntity<Void> registerEmployee(@RequestBody EmployeeReqDto employeeReqDto) {
         employeeService.createEmployee(employeeReqDto);
         return ResponseEntity.status(HttpStatus.CREATED).build();

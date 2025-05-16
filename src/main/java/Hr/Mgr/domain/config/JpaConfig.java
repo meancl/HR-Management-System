@@ -55,6 +55,8 @@ public class JpaConfig {
         jpaProperties.put("hibernate.show_sql", true);
         jpaProperties.put("hibernate.use_sql_comments", true);
         jpaProperties.put("hibernate.log_bind_parameters", true);
+        jpaProperties.put("hibernate.hbm2ddl.auto", "update");
+        jpaProperties.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
 
         return builder
                 .dataSource(routingDataSource)

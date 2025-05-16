@@ -15,19 +15,17 @@ spring:
   application:
     name: Mgr
 
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        format_sql: true
-        highlight_sql: false
-        use_sql_comments: true
-        dialect: org.hibernate.dialect.MySQLDialect
-
-  jackson:
-    property-naming-strategy: SNAKE_CASE
+#  jpa:
+#    hibernate:
+#      ddl-auto: update
+#    properties:
+#      hibernate:
+#        format_sql: true
+#        highlight_sql: false
+#        use_sql_comments: true
+#        dialect: org.hibernate.dialect.MySQLDialect
+#  jackson:
+#    property-naming-strategy: SNAKE_CASE
 
   kafka:
     producer:

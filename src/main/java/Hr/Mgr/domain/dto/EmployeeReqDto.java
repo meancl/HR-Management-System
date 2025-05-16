@@ -1,5 +1,6 @@
 package Hr.Mgr.domain.dto;
 
+import Hr.Mgr.domain.enums.Role;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,7 +9,8 @@ import lombok.Setter;
 public class EmployeeReqDto {
     private String name;
     private String email;
-    private String password; // 원본 비밀번호 (해싱 필요)
+    private String password;
     private Integer age;
-
+    private Long departmentId;
+    private Role role;
 }

@@ -2,10 +2,12 @@ package Hr.Mgr.domain.serviceImpl;
 
 import Hr.Mgr.domain.dto.EmployeeReqDto;
 import Hr.Mgr.domain.dto.EmployeeResDto;
+import Hr.Mgr.domain.entity.Department;
 import Hr.Mgr.domain.entity.Employee;
 import Hr.Mgr.domain.enums.EmployeeStatus;
 import Hr.Mgr.domain.exception.EmployeeNotFoundException;
 import Hr.Mgr.domain.repository.EmployeeRepository;
+import Hr.Mgr.domain.service.DepartmentService;
 import Hr.Mgr.domain.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -23,6 +25,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmployeeService.class);
     private final EmployeeRepository employeeRepository;
+    private final DepartmentService departmentService;
     private final BCryptPasswordEncoder passwordEncoder;
 
 
@@ -32,12 +35,17 @@ public class EmployeeServiceImpl implements EmployeeService {
         logger.info(" 회원가입 요청: 이메일={}, 이름={}", request.getEmail(), request.getName());
 
         try {
+
+            Department departmentEntityById = departmentService.findDepartmentEntityById(request.getDepartmentId());
+
             Employee employee = new Employee();
+            employee.setDepartment(departmentEntityById);
             employee.setName(request.getName());
             employee.setEmail(request.getEmail());
-            employee.setHashedPwd(passwordEncoder.encode(request.getPassword())); // ✅ 비밀번호 해싱
+            employee.setHashedPwd(passwordEncoder.encode(request.getPassword()));
             employee.setAge(request.getAge());
             employee.setEmployeeStatus(EmployeeStatus.PROBATION);
+            employee.setRole(request.getRole());
 
             Employee save = employeeRepository.save(employee);
             logger.info(" 회원가입 성공: 이메일={}", request.getEmail());
